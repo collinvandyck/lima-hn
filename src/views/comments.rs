@@ -202,7 +202,9 @@ fn comment_to_list_item(
     }
 
     let text = strip_html(&comment.text);
-    let text_prefix = build_text_prefix(depth, has_more_at_depth, has_children, color);
+    // Only show children connector if children are visible (expanded)
+    let show_children_connector = has_children && is_expanded;
+    let text_prefix = build_text_prefix(depth, has_more_at_depth, show_children_connector, color);
     let prefix_width = text_prefix.content.len();
     let available_width = max_width.saturating_sub(prefix_width).max(20);
     let wrapped_lines = wrap_text(&text, available_width);
@@ -216,7 +218,8 @@ fn comment_to_list_item(
         ]));
     }
 
-    let empty_prefix = build_empty_line_prefix(depth, has_more_at_depth, has_children, color);
+    let empty_prefix =
+        build_empty_line_prefix(depth, has_more_at_depth, show_children_connector, color);
     lines.push(Line::from(vec![empty_prefix]));
 
     ListItem::new(lines)
@@ -585,6 +588,51 @@ mod tests {
         assert!(output.contains("[+]"));
         assert!(output.contains("2 replies"));
         assert!(!output.contains("Hidden reply"));
+    }
+
+    #[test]
+    fn test_comments_view_top_level_collapsed_no_connectors() {
+        // Multiple top-level comments, some collapsed with children.
+        // Collapsed comments should NOT show │ connectors since their children are hidden.
+        let comments = vec![
+            CommentBuilder::new()
+                .id(1)
+                .text("First top-level comment")
+                .author("alice")
+                .depth(0)
+                .kids(vec![10])
+                .build(),
+            CommentBuilder::new()
+                .id(2)
+                .text("Second top-level comment")
+                .author("bob")
+                .depth(0)
+                .kids(vec![20])
+                .build(),
+            CommentBuilder::new()
+                .id(3)
+                .text("Third top-level comment")
+                .author("carol")
+                .depth(0)
+                .build(),
+        ];
+
+        let app = TestAppBuilder::new()
+            .with_comments(comments)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Multiple Top-Level".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            // No comments expanded - all collapsed
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
     }
 
     #[test]

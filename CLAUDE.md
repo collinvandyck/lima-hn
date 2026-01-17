@@ -83,6 +83,8 @@ Snapshots live in `src/views/snapshots/` and are version controlled.
 
 **Test data builders:** `StoryBuilder`, `CommentBuilder`, `TestAppBuilder` in `test_utils.rs`
 
+**UI changes require snapshot updates:** When modifying view rendering logic, add or update snapshot tests to cover the new behavior. Run `just test` to see failures, then `just snap` to update. Review the diff to verify the rendered output matches expectations.
+
 ## CLI
 
 ```bash
