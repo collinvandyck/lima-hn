@@ -12,6 +12,7 @@ use crate::api::{Feed, Story};
 use crate::app::App;
 use crate::theme::ResolvedTheme;
 use crate::time::{Clock, format_relative};
+use crate::views::status_bar::StatusBar;
 
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::vertical([
@@ -147,31 +148,17 @@ fn story_to_list_item(
 }
 
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
-    let theme = &app.theme;
     let help_text = if app.show_help {
         "j/k:nav  g/G:top/bottom  H/L:feeds  o:open  l:comments  c:HN  1-6:feeds  r:refresh  `:debug  q:quit  ?:hide"
     } else {
         "H/L:feeds  ?:help  q:quit"
     };
 
-    let spans = vec![
-        Span::styled(
-            format!(" {} ", app.feed.label()),
-            Style::default()
-                .bg(theme.status_bar_bg)
-                .fg(theme.status_bar_fg),
-        ),
-        Span::raw(" "),
-        Span::styled(
-            format!("{}/{}", app.selected_index + 1, app.stories.len()),
-            Style::default().fg(theme.foreground_dim),
-        ),
-        Span::raw(" | "),
-        Span::styled(help_text, Style::default().fg(theme.foreground_dim)),
-    ];
-
-    let status = Line::from(spans);
-    frame.render_widget(Paragraph::new(status), area);
+    StatusBar::new(&app.theme)
+        .label(app.feed.label())
+        .position(app.selected_index + 1, app.stories.len())
+        .help(help_text)
+        .render(frame, area);
 }
 
 #[cfg(test)]

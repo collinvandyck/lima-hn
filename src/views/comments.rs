@@ -13,6 +13,7 @@ use crate::api::Comment;
 use crate::app::{App, View};
 use crate::theme::ResolvedTheme;
 use crate::time::{Clock, format_relative};
+use crate::views::status_bar::StatusBar;
 
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let story_title = match &app.view {
@@ -335,42 +336,28 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     use super::spinner::spinner_frame;
 
-    let theme = &app.theme;
     let help_text = if app.show_help {
         "j/k:nav  l/h:expand  L/H:subtree  +/-:thread  o:story  c:link  Esc:back  r:refresh  `:debug  q:quit  ?:hide"
     } else {
         "l/h:expand  L/H:subtree  +/-:thread  Esc:back  ?:help"
     };
 
-    let mut spans = vec![
-        Span::styled(
-            " Comments ",
-            Style::default()
-                .bg(theme.status_bar_bg)
-                .fg(theme.status_bar_fg),
-        ),
-        Span::raw(" "),
-    ];
+    let loading_text = if app.loading {
+        Some(format!("{} Loading...", spinner_frame(app.loading_start)))
+    } else {
+        None
+    };
 
-    if app.loading {
-        spans.push(Span::styled(
-            format!("{} Loading... ", spinner_frame(app.loading_start)),
-            Style::default().fg(theme.spinner),
-        ));
-        spans.push(Span::raw("| "));
+    let mut status_bar = StatusBar::new(&app.theme)
+        .label("Comments")
+        .position(app.selected_index + 1, app.comments.len())
+        .help(help_text);
+
+    if let Some(ref text) = loading_text {
+        status_bar = status_bar.loading(text);
     }
 
-    spans.extend([
-        Span::styled(
-            format!("{}/{}", app.selected_index + 1, app.comments.len()),
-            Style::default().fg(theme.foreground_dim),
-        ),
-        Span::raw(" | "),
-        Span::styled(help_text, Style::default().fg(theme.foreground_dim)),
-    ]);
-
-    let status = Line::from(spans);
-    frame.render_widget(Paragraph::new(status), area);
+    status_bar.render(frame, area);
 }
 
 fn strip_html(html: &str) -> String {
