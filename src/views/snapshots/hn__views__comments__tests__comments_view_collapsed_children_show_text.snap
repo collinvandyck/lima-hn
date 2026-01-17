@@ -25,4 +25,4 @@ Nested Collapse Test
 │                                                                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
- Comments  1/4 | l/h:expand/collapse  +/-:all  Esc:back  ?:help
+ Comments  1/4 | l/h:expand  L/H:subtree  +/-:thread  Esc:back  ?:help

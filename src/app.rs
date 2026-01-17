@@ -61,8 +61,10 @@ pub enum Message {
     OpenCommentsUrl,
     ExpandComment,
     CollapseComment,
-    ExpandAll,
-    CollapseAll,
+    ExpandSubtree,
+    CollapseSubtree,
+    ExpandThread,
+    CollapseThread,
     Back,
     Quit,
     Refresh,
@@ -320,8 +322,10 @@ impl App {
             Message::OpenCommentsUrl => self.open_comments_url(),
             Message::ExpandComment => self.expand_comment(),
             Message::CollapseComment => self.collapse_comment(),
-            Message::ExpandAll => self.expand_all(),
-            Message::CollapseAll => self.collapse_all(),
+            Message::ExpandSubtree => self.expand_subtree(),
+            Message::CollapseSubtree => self.collapse_subtree(),
+            Message::ExpandThread => self.expand_thread(),
+            Message::CollapseThread => self.collapse_thread(),
             Message::Back => self.go_back(),
             Message::Quit => self.should_quit = true,
             Message::Refresh => self.refresh(),
@@ -429,7 +433,7 @@ impl App {
         }
     }
 
-    fn expand_all(&mut self) {
+    fn expand_subtree(&mut self) {
         if let View::Comments { .. } = self.view {
             let Some(comment) = self.selected_comment() else {
                 return;
@@ -454,7 +458,7 @@ impl App {
         }
     }
 
-    fn collapse_all(&mut self) {
+    fn collapse_subtree(&mut self) {
         if let View::Comments { .. } = self.view {
             let Some(comment) = self.selected_comment() else {
                 return;
@@ -474,6 +478,22 @@ impl App {
                 }
                 self.expanded_comments.remove(&c.id);
             }
+        }
+    }
+
+    fn expand_thread(&mut self) {
+        if let View::Comments { .. } = self.view {
+            for c in &self.comments {
+                if !c.kids.is_empty() {
+                    self.expanded_comments.insert(c.id);
+                }
+            }
+        }
+    }
+
+    fn collapse_thread(&mut self) {
+        if let View::Comments { .. } = self.view {
+            self.expanded_comments.clear();
         }
     }
 
