@@ -97,3 +97,14 @@ Themes define semantic colors (story_title, story_score, comment_depth_colors, e
 **Tests:** High signal-to-noise ratio. Use builders and helpers (`TestAppBuilder`, `sample_stories()`) to hide setup boilerplate. Test names should describe the behavior being verified. The test body should make the "what" immediately clear.
 
 **Comments:** Only where they add real value. No comments that merely restate what the code does. Good comments explain *why* something non-obvious exists, document tricky edge cases, or clarify intent that isn't obvious from the code itself. If code needs a comment to be understood, first consider if the code can be made clearer.
+
+**Markdown formatting:** Use bold sparingly—only for key terms on first use or critical warnings, not for emphasis in running text. Avoid emojis entirely. Let the content speak for itself.
+
+**Markdown tables:** Format tables for terminal readability. Align columns by padding cells to consistent widths. Headers and separators should match the column width. Example:
+
+```markdown
+| #  | Feature    | Rationale                                 |
+|----|------------|-------------------------------------------|
+| 1  | Pagination | API supports it, UI doesn't expose it.    |
+| 2  | Bookmarks  | Completes core reading workflow.          |
+```
