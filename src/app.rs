@@ -378,7 +378,12 @@ impl App {
             && !comment.kids.is_empty()
         {
             let id = comment.id;
-            self.expanded_comments.insert(id);
+            if self.expanded_comments.contains(&id) {
+                // Already expanded - move to first child
+                self.selected_index += 1;
+            } else {
+                self.expanded_comments.insert(id);
+            }
         }
     }
 
