@@ -81,10 +81,15 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
     // Calculate available width for text (account for borders and indent)
     let content_width = area.width.saturating_sub(4) as usize; // 2 for borders, 2 for padding
 
-    let items: Vec<ListItem> = app
-        .comments
+    // Get only visible comments based on expansion state
+    let visible_indices = app.visible_comment_indices();
+    let items: Vec<ListItem> = visible_indices
         .iter()
-        .map(|c| comment_to_list_item(c, content_width))
+        .map(|&i| {
+            let comment = &app.comments[i];
+            let is_expanded = app.expanded_comments.contains(&comment.id);
+            comment_to_list_item(comment, content_width, is_expanded)
+        })
         .collect();
 
     let list = List::new(items)
@@ -101,19 +106,21 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
 
     // Center the selected item (scrolloff behavior)
     // Estimate ~4 lines per comment on average for visible item calculation
+    let visible_count = visible_indices.len();
     let visible_items = (area.height.saturating_sub(2) / 4).max(1) as usize;
     let half = visible_items / 2;
-    let max_offset = app.comments.len().saturating_sub(visible_items);
+    let max_offset = visible_count.saturating_sub(visible_items);
     let offset = app.selected_index.saturating_sub(half).min(max_offset);
     *state.offset_mut() = offset;
 
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-fn comment_to_list_item(comment: &Comment, max_width: usize) -> ListItem<'static> {
+fn comment_to_list_item(comment: &Comment, max_width: usize, is_expanded: bool) -> ListItem<'static> {
     let color = depth_color(comment.depth);
     let indent_width = comment.depth * 2;
     let indent = " ".repeat(indent_width);
+    let has_children = !comment.kids.is_empty();
 
     // Depth marker with color
     let depth_marker = if comment.depth > 0 {
@@ -125,9 +132,24 @@ fn comment_to_list_item(comment: &Comment, max_width: usize) -> ListItem<'static
         Span::raw("")
     };
 
+    // Collapse/expand indicator
+    let expand_indicator = if has_children {
+        if is_expanded {
+            Span::styled("[-] ", Style::default().fg(Color::DarkGray))
+        } else {
+            Span::styled(
+                format!("[+{}] ", comment.kids.len()),
+                Style::default().fg(Color::Yellow),
+            )
+        }
+    } else {
+        Span::styled("    ", Style::default())
+    };
+
     // Author line with colored marker
     let meta_line = Line::from(vec![
         depth_marker,
+        expand_indicator,
         Span::styled(
             comment.by.clone(),
             Style::default().fg(color).add_modifier(Modifier::BOLD),
@@ -136,9 +158,14 @@ fn comment_to_list_item(comment: &Comment, max_width: usize) -> ListItem<'static
         Span::styled(format_time(comment.time), Style::default().fg(Color::DarkGray)),
     ]);
 
+    // If collapsed with children, show only meta line
+    if has_children && !is_expanded {
+        return ListItem::new(vec![meta_line, Line::from("")]);
+    }
+
     // Process and wrap comment text
     let text = strip_html(&comment.text);
-    let text_indent = indent.clone() + "  "; // Extra indent for text body
+    let text_indent = indent.clone() + "      "; // Extra indent for text body (accounts for expand indicator)
     let available_width = max_width.saturating_sub(text_indent.len()).max(20);
 
     // Wrap text to fit available width
@@ -174,9 +201,9 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = if app.show_help {
-        "j/k:nav  g/G:top/bottom  o:story  c:permalink  h/Esc:back  r:refresh  q:quit  ?:hide"
+        "j/k:nav  l:expand  h:collapse  o:story  c:link  Esc:back  r:refresh  q:quit  ?:hide"
     } else {
-        "o:story  c:link  h:back  ?:help"
+        "l/h:expand/collapse  Esc:back  ?:help"
     };
 
     let status = Line::from(vec![

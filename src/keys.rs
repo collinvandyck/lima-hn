@@ -75,7 +75,9 @@ fn handle_comments_key(key: KeyEvent) -> Option<Message> {
         // Actions
         KeyCode::Char('o') => Some(Message::OpenUrl),
         KeyCode::Char('c') => Some(Message::OpenCommentsUrl),
-        KeyCode::Char('h') | KeyCode::Esc => Some(Message::Back),
+        KeyCode::Char('l') => Some(Message::ExpandComment),
+        KeyCode::Char('h') => Some(Message::CollapseComment),
+        KeyCode::Esc => Some(Message::Back),
         KeyCode::Char('r') | KeyCode::Char('R') => Some(Message::Refresh),
 
         // Help

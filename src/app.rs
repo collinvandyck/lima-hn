@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::api::{Comment, Feed, HnClient, Story};
 
 /// Current view in the application
@@ -34,6 +36,8 @@ pub enum Message {
     OpenUrl,
     OpenComments,
     OpenCommentsUrl,
+    ExpandComment,
+    CollapseComment,
     Back,
     Quit,
     Refresh,
@@ -51,6 +55,7 @@ pub struct App {
     pub feed: Feed,
     pub stories: Vec<Story>,
     pub comments: Vec<Comment>,
+    pub expanded_comments: HashSet<u64>,
     pub selected_index: usize,
     pub loading: bool,
     pub error: Option<String>,
@@ -67,6 +72,7 @@ impl Default for App {
             feed: Feed::default(),
             stories: Vec::new(),
             comments: Vec::new(),
+            expanded_comments: HashSet::new(),
             selected_index: 0,
             loading: false,
             error: None,
@@ -98,6 +104,8 @@ impl App {
             Message::OpenUrl => self.open_url(),
             Message::OpenComments => self.open_comments().await,
             Message::OpenCommentsUrl => self.open_comments_url(),
+            Message::ExpandComment => self.expand_comment(),
+            Message::CollapseComment => self.collapse_comment(),
             Message::Back => self.go_back(),
             Message::Quit => self.should_quit = true,
             Message::Refresh => self.refresh().await,
@@ -108,10 +116,68 @@ impl App {
         }
     }
 
+    /// Get indices of visible comments (respecting collapse state)
+    pub fn visible_comment_indices(&self) -> Vec<usize> {
+        let mut visible = Vec::new();
+        let mut parent_visible_at_depth: Vec<bool> = vec![true];
+
+        for (i, comment) in self.comments.iter().enumerate() {
+            parent_visible_at_depth.truncate(comment.depth + 1);
+
+            let is_visible = parent_visible_at_depth
+                .get(comment.depth)
+                .copied()
+                .unwrap_or(false);
+
+            if is_visible {
+                visible.push(i);
+
+                let children_visible = self.expanded_comments.contains(&comment.id);
+                if parent_visible_at_depth.len() <= comment.depth + 1 {
+                    parent_visible_at_depth.push(children_visible);
+                } else {
+                    parent_visible_at_depth[comment.depth + 1] = children_visible;
+                }
+            }
+        }
+
+        visible
+    }
+
+    /// Get the actual comment index from visible index
+    fn actual_comment_index(&self, visible_index: usize) -> Option<usize> {
+        self.visible_comment_indices().get(visible_index).copied()
+    }
+
+    /// Get currently selected comment
+    pub fn selected_comment(&self) -> Option<&Comment> {
+        let actual_idx = self.actual_comment_index(self.selected_index)?;
+        self.comments.get(actual_idx)
+    }
+
+    fn expand_comment(&mut self) {
+        if let View::Comments { .. } = self.view {
+            if let Some(comment) = self.selected_comment() {
+                if !comment.kids.is_empty() {
+                    let id = comment.id;
+                    self.expanded_comments.insert(id);
+                }
+            }
+        }
+    }
+
+    fn collapse_comment(&mut self) {
+        if let View::Comments { .. } = self.view {
+            if let Some(id) = self.selected_comment().map(|c| c.id) {
+                self.expanded_comments.remove(&id);
+            }
+        }
+    }
+
     fn item_count(&self) -> usize {
         match self.view {
             View::Stories => self.stories.len(),
-            View::Comments { .. } => self.comments.len(),
+            View::Comments { .. } => self.visible_comment_indices().len(),
         }
     }
 
@@ -175,7 +241,7 @@ impl App {
             }
             View::Comments { .. } => {
                 // Open permalink for the selected comment
-                if let Some(comment) = self.comments.get(self.selected_index) {
+                if let Some(comment) = self.selected_comment() {
                     let url = format!("https://news.ycombinator.com/item?id={}", comment.id);
                     let _ = open::that(url);
                 }
@@ -198,6 +264,7 @@ impl App {
                 };
                 self.loading = true;
                 self.comments.clear();
+                self.expanded_comments.clear();
                 self.selected_index = 0;
                 self.scroll_offset = 0;
 
