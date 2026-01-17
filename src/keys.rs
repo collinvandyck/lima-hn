@@ -64,6 +64,8 @@ fn handle_comments_key(key: KeyEvent) -> Option<Message> {
         KeyCode::Char('c') => Some(Message::OpenCommentsUrl),
         KeyCode::Char('l') => Some(Message::ExpandComment),
         KeyCode::Char('h') => Some(Message::CollapseComment),
+        KeyCode::Char('+') | KeyCode::Char('=') => Some(Message::ExpandAll),
+        KeyCode::Char('-') | KeyCode::Char('_') => Some(Message::CollapseAll),
         KeyCode::Esc => Some(Message::Back),
         KeyCode::Char('r') | KeyCode::Char('R') => Some(Message::Refresh),
         KeyCode::Char('?') => Some(Message::ToggleHelp),

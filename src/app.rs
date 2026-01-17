@@ -61,6 +61,8 @@ pub enum Message {
     OpenCommentsUrl,
     ExpandComment,
     CollapseComment,
+    ExpandAll,
+    CollapseAll,
     Back,
     Quit,
     Refresh,
@@ -318,6 +320,8 @@ impl App {
             Message::OpenCommentsUrl => self.open_comments_url(),
             Message::ExpandComment => self.expand_comment(),
             Message::CollapseComment => self.collapse_comment(),
+            Message::ExpandAll => self.expand_all(),
+            Message::CollapseAll => self.collapse_all(),
             Message::Back => self.go_back(),
             Message::Quit => self.should_quit = true,
             Message::Refresh => self.refresh(),
@@ -421,6 +425,54 @@ impl App {
                         return;
                     }
                 }
+            }
+        }
+    }
+
+    fn expand_all(&mut self) {
+        if let View::Comments { .. } = self.view {
+            let Some(comment) = self.selected_comment() else {
+                return;
+            };
+            let start_depth = comment.depth;
+
+            // Find actual index of selected comment
+            let Some(start_idx) = self.actual_comment_index(self.selected_index) else {
+                return;
+            };
+
+            // Expand selected comment and all descendants
+            for i in start_idx..self.comments.len() {
+                let c = &self.comments[i];
+                if i > start_idx && c.depth <= start_depth {
+                    break;
+                }
+                if !c.kids.is_empty() {
+                    self.expanded_comments.insert(c.id);
+                }
+            }
+        }
+    }
+
+    fn collapse_all(&mut self) {
+        if let View::Comments { .. } = self.view {
+            let Some(comment) = self.selected_comment() else {
+                return;
+            };
+            let start_depth = comment.depth;
+
+            // Find actual index of selected comment
+            let Some(start_idx) = self.actual_comment_index(self.selected_index) else {
+                return;
+            };
+
+            // Collapse selected comment and all descendants
+            for i in start_idx..self.comments.len() {
+                let c = &self.comments[i];
+                if i > start_idx && c.depth <= start_depth {
+                    break;
+                }
+                self.expanded_comments.remove(&c.id);
             }
         }
     }
