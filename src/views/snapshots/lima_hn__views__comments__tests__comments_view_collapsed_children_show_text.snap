@@ -2,21 +2,21 @@
 source: src/views/comments.rs
 expression: output
 ---
-Test Story Title
+Nested Collapse Test
 
-┌Comments (5)──────────────────────────────────────────────────────────────────┐
-│▶ [-] commenter1 · 794d ago · 2 replies                                       │
-│   │  This is a great project! I love the vim keybindings.                    │
+┌Comments (4)──────────────────────────────────────────────────────────────────┐
+│▶ [-] parent · 794d ago · 2 replies                                           │
+│   │  Parent comment expanded                                                 │
 │   │                                                                          │
-│   ├─ [+] commenter2 · 794d ago · 1 replies                                   │
-│   │      Agreed, the vim bindings are really nice. Would love to see more    │
-│   │      themes.                                                             │
+│   ├─ [ ] child_leaf · 794d ago                                               │
+│   │      Child with no replies                                               │
 │   │                                                                          │
-│   └─ [ ] windowsuser · 794d ago                                              │
-│          Does this work on Windows?                                          │
+│   └─ [+] child_parent · 794d ago · 1 replies                                 │
+│          Child with hidden grandchildren                                     │
 │                                                                              │
-│  [ ] searcher · 794d ago                                                     │
-│      Nice work! Any plans for search functionality?                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │
@@ -25,4 +25,4 @@ Test Story Title
 │                                                                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
- Comments  1/5 | l/h:expand/collapse  Esc:back  ?:help
+ Comments  1/4 | l/h:expand/collapse  Esc:back  ?:help

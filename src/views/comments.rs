@@ -194,13 +194,6 @@ fn comment_to_list_item(
     meta_spans.extend(child_info);
     let meta_line = Line::from(meta_spans);
 
-    // Hide text for collapsed comments with children, but only for nested comments
-    if has_children && !is_expanded && depth > 0 {
-        // Don't show own │ since children are hidden
-        let empty_prefix = build_empty_line_prefix(depth, has_more_at_depth, false, color);
-        return ListItem::new(vec![meta_line, Line::from(vec![empty_prefix])]);
-    }
-
     let text = strip_html(&comment.text);
     // Only show children connector if children are visible (expanded)
     let show_children_connector = has_children && is_expanded;
@@ -626,6 +619,57 @@ mod tests {
                 story_scroll: 0,
             })
             // No comments expanded - all collapsed
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_comments_view_collapsed_children_show_text() {
+        // When a parent is expanded, its collapsed children with grandchildren
+        // should still show their text (like DexesTTP in the example).
+        let comments = vec![
+            CommentBuilder::new()
+                .id(1)
+                .text("Parent comment expanded")
+                .author("parent")
+                .depth(0)
+                .kids(vec![2, 3])
+                .build(),
+            CommentBuilder::new()
+                .id(2)
+                .text("Child with no replies")
+                .author("child_leaf")
+                .depth(1)
+                .build(),
+            CommentBuilder::new()
+                .id(3)
+                .text("Child with hidden grandchildren")
+                .author("child_parent")
+                .depth(1)
+                .kids(vec![4])
+                .build(),
+            CommentBuilder::new()
+                .id(4)
+                .text("Hidden grandchild")
+                .author("grandchild")
+                .depth(2)
+                .build(),
+        ];
+
+        let app = TestAppBuilder::new()
+            .with_comments(comments)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Nested Collapse Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .expanded(vec![1]) // Only parent expanded, child_parent is collapsed
             .build();
 
         let output = render_to_string(80, 24, |frame| {
