@@ -43,3 +43,6 @@ themes:
 
 theme-show name:
     cargo run -- theme show {{name}}
+
+cl:
+    lima claude --allow-dangerously-skip-permissions --dangerously-skip-permissions --continue
