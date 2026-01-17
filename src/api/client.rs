@@ -120,41 +120,60 @@ impl HnClient {
         Ok(stories)
     }
 
-    /// Fetch comments for a story in flat order with depth tracking
-    /// Uses parallel fetching at each depth level for performance
+    /// Fetch comments for a story in depth-first order (like HN web)
+    /// Uses parallel fetching at each depth level for performance,
+    /// then reorders to DFS for correct threading display
     pub async fn fetch_comments_flat(
         &self,
         story: &Story,
         max_depth: usize,
     ) -> Result<Vec<Comment>> {
-        let mut comments = Vec::new();
-        let mut current_level: Vec<(u64, usize)> =
-            story.kids.iter().map(|&id| (id, 0)).collect();
+        // Phase 1: BFS fetch - collect all items in parallel by level
+        let mut items: HashMap<u64, HnItem> = HashMap::new();
+        let mut to_fetch: Vec<u64> = story.kids.clone();
+        let mut depth = 0;
 
-        while !current_level.is_empty() {
-            // Fetch all comments at current level in parallel
-            let futures: Vec<_> = current_level
-                .iter()
-                .map(|&(id, _)| self.fetch_item(id))
-                .collect();
+        while !to_fetch.is_empty() && depth <= max_depth {
+            // Fetch current level in parallel
+            let futures: Vec<_> = to_fetch.iter().map(|&id| self.fetch_item(id)).collect();
             let results = futures::future::join_all(futures).await;
 
-            // Process results and collect next level's IDs
-            let mut next_level = Vec::new();
-            for ((_, depth), result) in current_level.into_iter().zip(results) {
+            // Collect results and queue children for next level
+            let mut next_fetch = Vec::new();
+            for (id, result) in to_fetch.into_iter().zip(results) {
                 if let Ok(item) = result {
-                    if let Some(comment) = Comment::from_item(item.clone(), depth) {
-                        // Collect children for next level if within depth limit
-                        if depth < max_depth {
-                            for &kid_id in &item.kids {
-                                next_level.push((kid_id, depth + 1));
-                            }
-                        }
-                        comments.push(comment);
+                    // Skip deleted/dead comments
+                    if item.deleted.unwrap_or(false) || item.dead.unwrap_or(false) {
+                        continue;
                     }
+                    // Queue children for next depth level
+                    if depth < max_depth {
+                        next_fetch.extend(&item.kids);
+                    }
+                    items.insert(id, item);
                 }
             }
-            current_level = next_level;
+            to_fetch = next_fetch;
+            depth += 1;
+        }
+
+        // Phase 2: DFS traversal to produce correctly ordered output
+        let mut comments = Vec::new();
+        let mut stack: Vec<(u64, usize)> = story.kids.iter().rev().map(|&id| (id, 0)).collect();
+
+        while let Some((id, depth)) = stack.pop() {
+            if let Some(item) = items.remove(&id) {
+                // Add children to stack in reverse order (so first child is processed first)
+                for &kid_id in item.kids.iter().rev() {
+                    if items.contains_key(&kid_id) {
+                        stack.push((kid_id, depth + 1));
+                    }
+                }
+                // Create comment
+                if let Some(comment) = Comment::from_item(item, depth) {
+                    comments.push(comment);
+                }
+            }
         }
 
         Ok(comments)
