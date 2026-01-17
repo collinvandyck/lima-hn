@@ -522,10 +522,9 @@ impl App {
         {
             let story_index = self.selected_index;
             let story_scroll = self.scroll_offset;
-            let story_id = story.id;
 
             self.view = View::Comments {
-                story_id,
+                story_id: story.id,
                 story_title: story.title.clone(),
                 story_index,
                 story_scroll,
@@ -534,24 +533,7 @@ impl App {
             self.comment_tree.clear();
             self.selected_index = 0;
             self.scroll_offset = 0;
-
-            let task_id = self.start_task(format!("Load comments for {}", story_id));
-            let client = self.client.clone();
-            let tx = self.result_tx.clone();
-
-            tokio::spawn(async move {
-                let result = client
-                    .fetch_comments_flat(&story, 5)
-                    .await
-                    .map_err(|e| e.to_string());
-                let _ = tx
-                    .send(AsyncResult::Comments {
-                        story_id,
-                        task_id,
-                        result,
-                    })
-                    .await;
-            });
+            self.spawn_comments_fetch(story, false);
         }
     }
 
@@ -572,57 +554,16 @@ impl App {
     fn refresh(&mut self) {
         match &self.view {
             View::Stories => {
-                // Clear cache and reload stories (keep existing stories visible during load)
-                let client = self.client.clone();
-                let feed = self.feed;
-                let tx = self.result_tx.clone();
-
                 self.generation += 1;
                 self.set_loading(true);
                 self.current_page = 0;
                 self.has_more = true;
-
-                let generation = self.generation;
-                let task_id = self.start_task(format!("Refresh {} stories", feed.label()));
-
-                tokio::spawn(async move {
-                    client.clear_cache().await;
-                    let result = client
-                        .fetch_stories(feed, 0)
-                        .await
-                        .map_err(|e| e.to_string());
-                    let _ = tx
-                        .send(AsyncResult::Stories {
-                            generation,
-                            task_id,
-                            result,
-                        })
-                        .await;
-                });
+                self.spawn_stories_fetch(0, true, false);
             }
             View::Comments { story_id, .. } => {
-                let story_id = *story_id;
-                if let Some(story) = self.stories.iter().find(|s| s.id == story_id).cloned() {
+                if let Some(story) = self.stories.iter().find(|s| s.id == *story_id).cloned() {
                     self.set_loading(true);
-
-                    let client = self.client.clone();
-                    let tx = self.result_tx.clone();
-                    let task_id = self.start_task(format!("Refresh comments for {}", story_id));
-
-                    tokio::spawn(async move {
-                        client.clear_cache().await;
-                        let result = client
-                            .fetch_comments_flat(&story, 5)
-                            .await
-                            .map_err(|e| e.to_string());
-                        let _ = tx
-                            .send(AsyncResult::Comments {
-                                story_id,
-                                task_id,
-                                result,
-                            })
-                            .await;
-                    });
+                    self.spawn_comments_fetch(story, true);
                 }
             }
         }
@@ -650,26 +591,7 @@ impl App {
         self.stories.clear();
         self.current_page = 0;
         self.has_more = true;
-
-        let client = self.client.clone();
-        let feed = self.feed;
-        let tx = self.result_tx.clone();
-        let generation = self.generation;
-        let task_id = self.start_task(format!("Load {} stories", feed.label()));
-
-        tokio::spawn(async move {
-            let result = client
-                .fetch_stories(feed, 0)
-                .await
-                .map_err(|e| e.to_string());
-            let _ = tx
-                .send(AsyncResult::Stories {
-                    generation,
-                    task_id,
-                    result,
-                })
-                .await;
-        });
+        self.spawn_stories_fetch(0, false, false);
     }
 
     fn should_load_more(&self) -> bool {
@@ -707,21 +629,82 @@ impl App {
 
         self.loading_more = true;
         let next_page = self.current_page + 1;
+        self.spawn_stories_fetch(next_page, false, true);
+    }
 
+    /// Spawn an async task to fetch stories.
+    ///
+    /// - `page`: Which page to fetch (0 for initial load)
+    /// - `clear_cache`: Whether to clear the cache first (for refresh)
+    /// - `is_more`: If true, sends `AsyncResult::MoreStories`; otherwise `AsyncResult::Stories`
+    fn spawn_stories_fetch(&mut self, page: usize, clear_cache: bool, is_more: bool) {
         let client = self.client.clone();
         let feed = self.feed;
         let tx = self.result_tx.clone();
         let generation = self.generation;
-        let task_id = self.start_task(format!("Load {} page {}", feed.label(), next_page));
+
+        let task_desc = if is_more {
+            format!("Load {} page {}", feed.label(), page)
+        } else if clear_cache {
+            format!("Refresh {} stories", feed.label())
+        } else {
+            format!("Load {} stories", feed.label())
+        };
+        let task_id = self.start_task(task_desc);
 
         tokio::spawn(async move {
+            if clear_cache {
+                client.clear_cache().await;
+            }
             let result = client
-                .fetch_stories(feed, next_page)
+                .fetch_stories(feed, page)
+                .await
+                .map_err(|e| e.to_string());
+
+            let msg = if is_more {
+                AsyncResult::MoreStories {
+                    generation,
+                    task_id,
+                    result,
+                }
+            } else {
+                AsyncResult::Stories {
+                    generation,
+                    task_id,
+                    result,
+                }
+            };
+            let _ = tx.send(msg).await;
+        });
+    }
+
+    /// Spawn an async task to fetch comments for a story.
+    ///
+    /// - `story`: The story to fetch comments for
+    /// - `clear_cache`: Whether to clear the cache first (for refresh)
+    fn spawn_comments_fetch(&mut self, story: Story, clear_cache: bool) {
+        let story_id = story.id;
+        let client = self.client.clone();
+        let tx = self.result_tx.clone();
+
+        let task_desc = if clear_cache {
+            format!("Refresh comments for {}", story_id)
+        } else {
+            format!("Load comments for {}", story_id)
+        };
+        let task_id = self.start_task(task_desc);
+
+        tokio::spawn(async move {
+            if clear_cache {
+                client.clear_cache().await;
+            }
+            let result = client
+                .fetch_comments_flat(&story, 5)
                 .await
                 .map_err(|e| e.to_string());
             let _ = tx
-                .send(AsyncResult::MoreStories {
-                    generation,
+                .send(AsyncResult::Comments {
+                    story_id,
                     task_id,
                     result,
                 })
