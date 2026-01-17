@@ -47,6 +47,9 @@ pub struct App {
     pub selected_index: usize,
     pub loading: bool,
     pub loading_start: Option<Instant>,
+    pub loading_more: bool,
+    pub current_page: usize,
+    pub has_more: bool,
     pub error: Option<String>,
     pub should_quit: bool,
     pub show_help: bool,
@@ -66,6 +69,9 @@ impl App {
             selected_index: 0,
             loading: false,
             loading_start: None,
+            loading_more: false,
+            current_page: 0,
+            has_more: true,
             error: None,
             should_quit: false,
             show_help: false,
@@ -84,11 +90,26 @@ impl App {
         self.error = None;
 
         match msg {
-            Message::SelectNext => self.select_next(),
+            Message::SelectNext => {
+                self.select_next();
+                if self.should_load_more() {
+                    self.load_more().await;
+                }
+            }
             Message::SelectPrev => self.select_prev(),
             Message::SelectFirst => self.select_first(),
-            Message::SelectLast => self.select_last(),
-            Message::PageDown => self.page_down(),
+            Message::SelectLast => {
+                self.select_last();
+                if self.should_load_more() {
+                    self.load_more().await;
+                }
+            }
+            Message::PageDown => {
+                self.page_down();
+                if self.should_load_more() {
+                    self.load_more().await;
+                }
+            }
             Message::PageUp => self.page_up(),
             Message::OpenUrl => self.open_url(),
             Message::OpenComments => self.open_comments().await,
@@ -339,6 +360,8 @@ impl App {
         self.set_loading(true);
         self.error = None;
         self.stories.clear();
+        self.current_page = 0;
+        self.has_more = true;
 
         match self.client.fetch_stories(self.feed, 0).await {
             Ok(stories) => {
@@ -350,6 +373,41 @@ impl App {
             Err(e) => {
                 self.error = Some(format!("Failed to load stories: {}", e));
                 self.set_loading(false);
+            }
+        }
+    }
+
+    fn should_load_more(&self) -> bool {
+        const THRESHOLD: usize = 5;
+        matches!(self.view, View::Stories)
+            && !self.loading
+            && !self.loading_more
+            && self.has_more
+            && !self.stories.is_empty()
+            && self.selected_index + THRESHOLD >= self.stories.len()
+    }
+
+    async fn load_more(&mut self) {
+        if self.loading_more || !self.has_more {
+            return;
+        }
+
+        self.loading_more = true;
+        let next_page = self.current_page + 1;
+
+        match self.client.fetch_stories(self.feed, next_page).await {
+            Ok(stories) => {
+                if stories.is_empty() {
+                    self.has_more = false;
+                } else {
+                    self.stories.extend(stories);
+                    self.current_page = next_page;
+                }
+                self.loading_more = false;
+            }
+            Err(e) => {
+                self.error = Some(format!("Failed to load more: {}", e));
+                self.loading_more = false;
             }
         }
     }
