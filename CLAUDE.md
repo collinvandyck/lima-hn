@@ -54,6 +54,12 @@ After making changes:
 - Auto dark/light detection
 - Loading spinner animation
 
+## Roadmap
+
+ROADMAP.md contains possible features that may be started on. It should not be
+used for normal project planning and only should be updated when specifically
+asked.
+
 ## Testing
 
 View tests use `ratatui::TestBackend` + `insta` snapshots:
@@ -94,7 +100,7 @@ Themes define semantic colors (story_title, story_score, comment_depth_colors, e
 
 **Modular code:** Keep functions focused and composable. Prefer small, single-purpose modules over large files.
 
-**Tests:** High signal-to-noise ratio. Use builders and helpers (`TestAppBuilder`, `sample_stories()`) to hide setup boilerplate. Test names should describe the behavior being verified. The test body should make the "what" immediately clear.
+**Tests:** High signal-to-noise ratio. Use builders and helpers (`TestAppBuilder`, `sample_stories()`) to hide setup boilerplate. Test names should describe the behavior being verified. The test body should make the "what" immediately clear. Modifications and new features should have high quality test coverage.
 
 **Comments:** Only where they add real value. No comments that merely restate what the code does. Good comments explain *why* something non-obvious exists, document tricky edge cases, or clarify intent that isn't obvious from the code itself. If code needs a comment to be understood, first consider if the code can be made clearer.
 
