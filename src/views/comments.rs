@@ -165,9 +165,9 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = if app.show_help {
-        "j/k:nav  g/G:top/bottom  c:HN comments  h/Esc:back  r:refresh  q:quit  ?:hide"
+        "j/k:nav  g/G:top/bottom  o:story  c:permalink  h/Esc:back  r:refresh  q:quit  ?:hide"
     } else {
-        "c:HN  h:back  ?:help  q:quit"
+        "o:story  c:link  h:back  ?:help"
     };
 
     let status = Line::from(vec![

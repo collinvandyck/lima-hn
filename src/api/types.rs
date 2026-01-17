@@ -64,6 +64,7 @@ impl Story {
 /// A comment from Hacker News
 #[derive(Debug, Clone)]
 pub struct Comment {
+    pub id: u64,
     pub text: String,
     pub by: String,
     pub time: u64,
@@ -80,6 +81,7 @@ impl Comment {
         }
 
         Some(Comment {
+            id: item.id,
             text: html_escape::decode_html_entities(&item.text?).to_string(),
             by: item.by.unwrap_or_else(|| "[deleted]".to_string()),
             time: item.time.unwrap_or(0),

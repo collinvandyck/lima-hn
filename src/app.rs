@@ -4,7 +4,13 @@ use crate::api::{Comment, Feed, HnClient, Story};
 #[derive(Debug, Clone, PartialEq)]
 pub enum View {
     Stories,
-    Comments { story_id: u64, story_title: String },
+    Comments {
+        story_id: u64,
+        story_title: String,
+        /// Saved story view state for restoration on back
+        story_index: usize,
+        story_scroll: usize,
+    },
 }
 
 impl Default for View {
@@ -146,36 +152,60 @@ impl App {
     }
 
     fn open_url(&self) {
-        if let View::Stories = self.view {
-            if let Some(story) = self.stories.get(self.selected_index) {
-                if let Some(url) = &story.url {
-                    let _ = open::that(url);
+        match &self.view {
+            View::Stories => {
+                if let Some(story) = self.stories.get(self.selected_index) {
+                    if let Some(url) = &story.url {
+                        let _ = open::that(url);
+                    }
+                }
+            }
+            View::Comments { story_index, .. } => {
+                // Open the story's URL from comments view
+                if let Some(story) = self.stories.get(*story_index) {
+                    if let Some(url) = &story.url {
+                        let _ = open::that(url);
+                    }
                 }
             }
         }
     }
 
     fn open_comments_url(&self) {
-        let story_id = match &self.view {
-            View::Stories => self.stories.get(self.selected_index).map(|s| s.id),
-            View::Comments { story_id, .. } => Some(*story_id),
-        };
-        if let Some(id) = story_id {
-            let url = format!("https://news.ycombinator.com/item?id={}", id);
-            let _ = open::that(url);
+        match &self.view {
+            View::Stories => {
+                if let Some(story) = self.stories.get(self.selected_index) {
+                    let url = format!("https://news.ycombinator.com/item?id={}", story.id);
+                    let _ = open::that(url);
+                }
+            }
+            View::Comments { .. } => {
+                // Open permalink for the selected comment
+                if let Some(comment) = self.comments.get(self.selected_index) {
+                    let url = format!("https://news.ycombinator.com/item?id={}", comment.id);
+                    let _ = open::that(url);
+                }
+            }
         }
     }
 
     async fn open_comments(&mut self) {
         if let View::Stories = self.view {
             if let Some(story) = self.stories.get(self.selected_index).cloned() {
+                // Save story view state before switching
+                let story_index = self.selected_index;
+                let story_scroll = self.scroll_offset;
+
                 self.view = View::Comments {
                     story_id: story.id,
                     story_title: story.title.clone(),
+                    story_index,
+                    story_scroll,
                 };
                 self.loading = true;
                 self.comments.clear();
                 self.selected_index = 0;
+                self.scroll_offset = 0;
 
                 match self.client.fetch_comments_flat(&story, 5).await {
                     Ok(comments) => {
@@ -192,11 +222,11 @@ impl App {
     }
 
     fn go_back(&mut self) {
-        if let View::Comments { .. } = self.view {
+        if let View::Comments { story_index, story_scroll, .. } = self.view {
             self.view = View::Stories;
             self.comments.clear();
-            self.selected_index = 0;
-            self.scroll_offset = 0;
+            self.selected_index = story_index;
+            self.scroll_offset = story_scroll;
         }
     }
 
@@ -310,13 +340,18 @@ mod tests {
     }
 
     #[test]
-    fn test_go_back() {
+    fn test_go_back_restores_state() {
         let mut app = App::default();
         app.view = View::Comments {
             story_id: 1,
             story_title: "Test".to_string(),
+            story_index: 5,
+            story_scroll: 10,
         };
+        app.selected_index = 3; // Comment selection
         app.go_back();
         assert_eq!(app.view, View::Stories);
+        assert_eq!(app.selected_index, 5);
+        assert_eq!(app.scroll_offset, 10);
     }
 }
