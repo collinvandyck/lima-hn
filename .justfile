@@ -1,4 +1,4 @@
-default: run
+default: rr
 
 run:
     cargo run
@@ -7,7 +7,7 @@ rr:
     cargo run --release
 
 run-theme theme:
-    cargo run -- --theme {{theme}}
+    cargo run -- --theme {{ theme }}
 
 test:
     cargo test
@@ -45,7 +45,7 @@ themes:
     cargo run -- theme list
 
 theme-show name:
-    cargo run -- theme show {{name}}
+    cargo run -- theme show {{ name }}
 
 cl *args:
-    lima claude --allow-dangerously-skip-permissions --dangerously-skip-permissions {{args}}
+    lima claude --allow-dangerously-skip-permissions --dangerously-skip-permissions {{ args }}
