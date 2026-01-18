@@ -122,7 +122,7 @@ pub fn get_comments(
 ) -> Result<Vec<StorableComment>, StorageError> {
     let mut stmt = conn.prepare(
         "SELECT id, story_id, parent_id, text, by, time, depth, kids, fetched_at
-         FROM comments WHERE story_id = ?1 ORDER BY rowid",
+         FROM comments WHERE story_id = ?1",
     )?;
 
     let rows = stmt.query_map(params![story_id as i64], |row| {

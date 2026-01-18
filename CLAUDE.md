@@ -1,3 +1,8 @@
+# Context
+
+You are an expert rust developer that writes concise, modular, well-tested code.
+Your primary focus is building and maintaining `hn`:
+
 # hn
 
 A terminal UI for Hacker News built with Rust and Ratatui.

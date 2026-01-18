@@ -148,7 +148,8 @@ impl HnClient {
             && let Ok(Some(cached)) = storage.get_fresh_comments(story.id).await
         {
             info!(count = cached.len(), "comments cache hit");
-            return Ok(cached.into_iter().map(|c| c.into()).collect());
+            let comments: Vec<Comment> = cached.into_iter().map(|c| c.into()).collect();
+            return Ok(order_cached_comments(comments, &story.kids));
         }
 
         let mut items: HashMap<u64, HnItem> = HashMap::new();
@@ -232,6 +233,24 @@ pub fn build_comment_tree(
     }
 
     comments
+}
+
+/// Orders cached comments into DFS tree order using stored kids arrays.
+fn order_cached_comments(cached: Vec<Comment>, root_kids: &[u64]) -> Vec<Comment> {
+    let mut by_id: HashMap<u64, Comment> = cached.into_iter().map(|c| (c.id, c)).collect();
+    let mut result = Vec::with_capacity(by_id.len());
+    let mut stack: Vec<u64> = root_kids.iter().rev().copied().collect();
+
+    while let Some(id) = stack.pop() {
+        if let Some(comment) = by_id.remove(&id) {
+            for &kid_id in comment.kids.iter().rev() {
+                stack.push(kid_id);
+            }
+            result.push(comment);
+        }
+    }
+
+    result
 }
 
 impl Default for HnClient {
