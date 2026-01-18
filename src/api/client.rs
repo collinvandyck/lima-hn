@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use tokio::sync::RwLock;
 use tracing::{debug, info, instrument, warn};
 
 use super::error::ApiError;
@@ -10,23 +8,10 @@ use super::types::{Comment, Feed, HnItem, Story};
 use crate::storage::{StorableComment, StorableStory, Storage};
 
 const API_BASE: &str = "https://hacker-news.firebaseio.com/v0";
-const CACHE_TTL: Duration = Duration::from_secs(60);
 const PAGE_SIZE: usize = 30;
-
-struct CacheEntry<T> {
-    data: T,
-    fetched_at: Instant,
-}
-
-impl<T> CacheEntry<T> {
-    fn is_fresh(&self) -> bool {
-        self.fetched_at.elapsed() < CACHE_TTL
-    }
-}
 
 pub struct HnClient {
     http: reqwest::Client,
-    item_cache: Arc<RwLock<HashMap<u64, CacheEntry<HnItem>>>>,
     storage: Option<Storage>,
 }
 
@@ -37,17 +22,12 @@ impl HnClient {
                 .timeout(Duration::from_secs(10))
                 .build()
                 .expect("Failed to create HTTP client"),
-            item_cache: Arc::new(RwLock::new(HashMap::new())),
             storage: None,
         }
     }
 
     pub fn set_storage(&mut self, storage: Storage) {
         self.storage = Some(storage);
-    }
-
-    pub async fn clear_cache(&self) {
-        self.item_cache.write().await.clear();
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, url: &str) -> Result<T, ApiError> {
@@ -72,34 +52,17 @@ impl HnClient {
     }
 
     async fn fetch_item(&self, id: u64) -> Result<HnItem, ApiError> {
-        {
-            let cache = self.item_cache.read().await;
-            if let Some(entry) = cache.get(&id)
-                && entry.is_fresh()
-            {
-                return Ok(entry.data.clone());
-            }
-        }
-
         let url = format!("{}/item/{}.json", API_BASE, id);
-        let item: HnItem = self.get_json(&url).await?;
-
-        {
-            let mut cache = self.item_cache.write().await;
-            cache.insert(
-                id,
-                CacheEntry {
-                    data: item.clone(),
-                    fetched_at: Instant::now(),
-                },
-            );
-        }
-
-        Ok(item)
+        self.get_json(&url).await
     }
 
     #[instrument(skip(self), fields(feed = %feed.label(), page))]
-    pub async fn fetch_stories(&self, feed: Feed, page: usize) -> Result<Vec<Story>, ApiError> {
+    pub async fn fetch_stories(
+        &self,
+        feed: Feed,
+        page: usize,
+        force_refresh: bool,
+    ) -> Result<Vec<Story>, ApiError> {
         info!("fetching stories");
         let ids = self.fetch_feed_ids(feed).await?;
         let start = page * PAGE_SIZE;
@@ -110,25 +73,33 @@ impl HnClient {
         }
 
         let page_ids = &ids[start..end];
-        let stories = self.fetch_stories_by_ids(page_ids).await?;
+        let stories = self.fetch_stories_by_ids(page_ids, force_refresh).await?;
         info!(count = stories.len(), "fetched stories");
         Ok(stories)
     }
 
-    pub async fn fetch_stories_by_ids(&self, ids: &[u64]) -> Result<Vec<Story>, ApiError> {
+    pub async fn fetch_stories_by_ids(
+        &self,
+        ids: &[u64],
+        force_refresh: bool,
+    ) -> Result<Vec<Story>, ApiError> {
         let mut stories = Vec::with_capacity(ids.len());
         let mut to_fetch = Vec::new();
 
-        // Check storage for cached stories
-        if let Some(storage) = &self.storage {
-            for &id in ids {
-                if let Ok(Some(cached)) = storage.get_fresh_story(id).await {
-                    debug!(story_id = id, "cache hit");
-                    stories.push(cached.into());
-                } else {
-                    debug!(story_id = id, "cache miss");
-                    to_fetch.push(id);
+        // Check storage for cached stories (unless forcing refresh)
+        if !force_refresh {
+            if let Some(storage) = &self.storage {
+                for &id in ids {
+                    if let Ok(Some(cached)) = storage.get_fresh_story(id).await {
+                        debug!(story_id = id, "cache hit");
+                        stories.push(cached.into());
+                    } else {
+                        debug!(story_id = id, "cache miss");
+                        to_fetch.push(id);
+                    }
                 }
+            } else {
+                to_fetch.extend_from_slice(ids);
             }
         } else {
             to_fetch.extend_from_slice(ids);
@@ -277,7 +248,6 @@ impl Clone for HnClient {
     fn clone(&self) -> Self {
         Self {
             http: self.http.clone(),
-            item_cache: Arc::clone(&self.item_cache),
             storage: self.storage.clone(),
         }
     }

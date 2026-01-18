@@ -773,9 +773,9 @@ impl App {
     /// Spawn an async task to fetch stories.
     ///
     /// - `page`: Which page to fetch (0 for initial load)
-    /// - `clear_cache`: Whether to clear the cache first (for refresh)
+    /// - `force_refresh`: Whether to bypass cache and fetch fresh data
     /// - `is_more`: If true, sends `AsyncResult::MoreStories`; otherwise `AsyncResult::Stories`
-    fn spawn_stories_fetch(&mut self, page: usize, clear_cache: bool, is_more: bool) {
+    fn spawn_stories_fetch(&mut self, page: usize, force_refresh: bool, is_more: bool) {
         let client = self.client.clone();
         let feed = self.feed;
         let tx = self.result_tx.clone();
@@ -783,7 +783,7 @@ impl App {
 
         let task_desc = if is_more {
             format!("Load {} page {}", feed.label(), page)
-        } else if clear_cache {
+        } else if force_refresh {
             format!("Refresh {} stories", feed.label())
         } else {
             format!("Load {} stories", feed.label())
@@ -791,10 +791,7 @@ impl App {
         let task_id = self.debug.start_task(task_desc);
 
         tokio::spawn(async move {
-            if clear_cache {
-                client.clear_cache().await;
-            }
-            let result = client.fetch_stories(feed, page).await;
+            let result = client.fetch_stories(feed, page, force_refresh).await;
 
             let msg = if is_more {
                 AsyncResult::MoreStories {
@@ -816,13 +813,13 @@ impl App {
     /// Spawn an async task to fetch comments for a story.
     ///
     /// - `story`: The story to fetch comments for
-    /// - `clear_cache`: Whether to clear the cache first (for refresh)
-    fn spawn_comments_fetch(&mut self, story: Story, clear_cache: bool) {
+    /// - `force_refresh`: Whether to bypass cache and fetch fresh data
+    fn spawn_comments_fetch(&mut self, story: Story, force_refresh: bool) {
         let story_id = story.id;
         let client = self.client.clone();
         let tx = self.result_tx.clone();
 
-        let task_desc = if clear_cache {
+        let task_desc = if force_refresh {
             format!("Refresh comments for {}", story_id)
         } else {
             format!("Load comments for {}", story_id)
@@ -830,10 +827,7 @@ impl App {
         let task_id = self.debug.start_task(task_desc);
 
         tokio::spawn(async move {
-            if clear_cache {
-                client.clear_cache().await;
-            }
-            let result = client.fetch_comments_flat(&story, 5, clear_cache).await;
+            let result = client.fetch_comments_flat(&story, 5, force_refresh).await;
             let _ = tx
                 .send(AsyncResult::Comments {
                     story_id,
