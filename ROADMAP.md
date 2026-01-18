@@ -7,10 +7,11 @@ descriptions are in the sections below.
 
 ## Completed
 
-| Feature    | Notes                                                                        |
-|------------|------------------------------------------------------------------------------|
-| Pagination | Infinite scroll with automatic loading as you navigate. Background fetching. |
-| Debug Mode | Toggle with backtick (`). Shows running tasks and event log.                 |
+| Feature        | Notes                                                                        |
+|----------------|------------------------------------------------------------------------------|
+| Pagination     | Infinite scroll with automatic loading as you navigate. Background fetching. |
+| Debug Mode     | Toggle with backtick (`). Shows running tasks and event log.                 |
+| SQLite Storage | Local cache in `~/.local/share/hn/hn.db`. Write-through caching, async ops.  |
 
 ---
 
@@ -18,75 +19,45 @@ descriptions are in the sections below.
 
 | #  | Feature                  | Rationale                                                                     |
 |----|--------------------------|-------------------------------------------------------------------------------|
-| 1  | SQLite Storage           | Persist API data locally. Foundation for bookmarks, history, offline mode.    |
-| 2  | Deep Comment Loading     | Fetch comments beyond max depth on demand. Completes the reading experience.  |
-| 3  | Read/Unread Tracking     | Transforms app from viewer to daily-driver. Built on SQLite storage.          |
-| 4  | Local Bookmarks          | Completes core reading workflow. Built on SQLite storage.                     |
-| 5  | Copy to Clipboard        | Quick win, immediate utility. Users constantly want to share links.           |
-| 6  | Comment Enhancements     | Highlight OP, jump between top-level—small effort, better reading experience. |
-| 7  | View History             | Natural extension of read tracking. Built on SQLite storage.                  |
-| 8  | Search                   | High value for finding old discussions. Algolia API is straightforward.       |
-| 9  | User Profiles            | View karma, submissions, comments. Useful context when reading threads.       |
-| 10 | Story Filtering          | Hide low-score stories, block domains. Personalization without account.       |
-| 11 | Mouse Support            | Events already captured. Click-to-select, scroll wheel. Quick win.            |
-| 12 | Status Bar Improvements  | Polish: position indicator, time since refresh, unread count.                 |
-| 13 | Background Refresh       | Keep feeds fresh automatically. Nice for leaving app open.                    |
-| 14 | Preloading               | Prefetch next page, comments for nearby stories. Snappier feel.               |
-| 15 | Code Block Formatting    | Better rendering for technical discussions. Moderate effort.                  |
-| 16 | Customizable Keybindings | Power user feature. Config file for remapping keys.                           |
-| 17 | Export Thread            | Save discussions as markdown. Useful for reference.                           |
-| 18 | Split View               | Stories + comments side-by-side. Ambitious UI change.                         |
-| 19 | Link Preview             | Fetch page title/description. Opt-in for privacy. Nice-to-have.               |
-| 20 | Offline Mode             | SQLite approach makes this much simpler. Query local DB when offline.         |
-| 21 | Login Support            | Cookie-based auth. Enables upvoting/commenting. Security-sensitive.           |
-| 22 | Upvoting                 | Requires login. Visual indicator for upvoted items.                           |
-| 23 | Commenting & Replies     | Requires login. Compose in $EDITOR. Most complex account feature.             |
-| 24 | Share Integration        | Platform-specific (macOS share sheet, etc.). Limited audience.                |
-| 25 | Screen Reader Support    | Accessibility: focus announcements, terminal reader compat.                   |
-| 26 | High Contrast Mode       | Accessibility: dedicated theme, disable colors option.                        |
-| 27 | Plugin System            | Lua/WASM extensibility. Very ambitious, likely overkill.                      |
-| 28 | Focus Mode               | Hide scores/counts. Niche but interesting for mindful reading.                |
-| 29 | Multi-Account            | Switch HN accounts. Very niche use case.                                      |
-| 30 | Comment Threading Viz    | ASCII tree view like `git log --graph`. Fun but niche.                        |
-| 31 | HN "Wrapped"             | Reading stats. Fun year-end feature, requires history first.                  |
-| 32 | Gemini/Gopher Support    | Text-protocol fetching. Very niche.                                           |
+| 1  | Deep Comment Loading     | Fetch comments beyond max depth on demand. Completes the reading experience.  |
+| 2  | Read/Unread Tracking     | Transforms app from viewer to daily-driver. SQLite storage ready.             |
+| 3  | Local Bookmarks          | Completes core reading workflow. SQLite storage ready.                        |
+| 4  | Copy to Clipboard        | Quick win, immediate utility. Users constantly want to share links.           |
+| 5  | Comment Enhancements     | Highlight OP, jump between top-level—small effort, better reading experience. |
+| 6  | View History             | Natural extension of read tracking. SQLite storage ready.                     |
+| 7  | Search                   | High value for finding old discussions. Algolia API is straightforward.       |
+| 8  | User Profiles            | View karma, submissions, comments. Useful context when reading threads.       |
+| 9  | Story Filtering          | Hide low-score stories, block domains. Personalization without account.       |
+| 10 | Mouse Support            | Events already captured. Click-to-select, scroll wheel. Quick win.            |
+| 11 | Status Bar Improvements  | Polish: position indicator, time since refresh, unread count.                 |
+| 12 | Background Refresh       | Keep feeds fresh automatically. Nice for leaving app open.                    |
+| 13 | Preloading               | Prefetch next page, comments for nearby stories. Snappier feel.               |
+| 14 | Code Block Formatting    | Better rendering for technical discussions. Moderate effort.                  |
+| 15 | Customizable Keybindings | Power user feature. Config file for remapping keys.                           |
+| 16 | Export Thread            | Save discussions as markdown. Useful for reference.                           |
+| 17 | Split View               | Stories + comments side-by-side. Ambitious UI change.                         |
+| 18 | Link Preview             | Fetch page title/description. Opt-in for privacy. Nice-to-have.               |
+| 19 | Offline Mode             | SQLite in place makes this straightforward. Query local DB when offline.      |
+| 20 | Login Support            | Cookie-based auth. Enables upvoting/commenting. Security-sensitive.           |
+| 21 | Upvoting                 | Requires login. Visual indicator for upvoted items.                           |
+| 22 | Commenting & Replies     | Requires login. Compose in $EDITOR. Most complex account feature.             |
+| 23 | Share Integration        | Platform-specific (macOS share sheet, etc.). Limited audience.                |
+| 24 | Screen Reader Support    | Accessibility: focus announcements, terminal reader compat.                   |
+| 25 | High Contrast Mode       | Accessibility: dedicated theme, disable colors option.                        |
+| 26 | Plugin System            | Lua/WASM extensibility. Very ambitious, likely overkill.                      |
+| 27 | Focus Mode               | Hide scores/counts. Niche but interesting for mindful reading.                |
+| 28 | Multi-Account            | Switch HN accounts. Very niche use case.                                      |
+| 29 | Comment Threading Viz    | ASCII tree view like `git log --graph`. Fun but niche.                        |
+| 30 | HN "Wrapped"             | Reading stats. Fun year-end feature, requires history first.                  |
+| 31 | Gemini/Gopher Support    | Text-protocol fetching. Very niche.                                           |
 
 ---
 
-## SQLite Storage
+## SQLite Storage ✓
 
-Store all fetched API data in a local SQLite database. This provides a foundation for many other features.
-
-### Schema
-
-Mirror the HN API structure:
-
-- `items` table: stories, comments, polls, jobs (all item types)
-- `feeds` table: cached feed orderings (top, new, best, etc.)
-- `feed_items` junction table: feed membership with position
-
-### Behavior
-
-- Write-through: save items as they're fetched from the API
-- Read-through: check local DB before hitting the API
-- TTL-based freshness: track `fetched_at`, respect cache expiry
-- No blocking: writes happen async, don't slow down the UI
-
-### Benefits
-
-- **Bookmarks**: just a `bookmarked_at` column on items
-- **Read tracking**: `read_at` column on items
-- **View history**: query items ordered by `last_viewed_at`
-- **Offline mode**: serve from local DB when network unavailable
-- **Faster restarts**: immediate display of cached content
-
-### Location
-
-`~/.config/hn/data.db` (XDG data directory)
-
-### Migration
-
-rusqlite with embedded migrations. Version table tracks schema changes.
+Implemented with write-through caching—items are stored as they're fetched from the API. Uses rusqlite with embedded
+migrations. Database location: `~/.local/share/hn/hn.db`. Schema includes `items` table (stories, comments, polls, jobs)
+and `feeds`/`feed_items` tables for cached feed orderings. Async writes ensure the UI stays responsive.
 
 ---
 
