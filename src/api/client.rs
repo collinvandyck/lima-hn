@@ -150,29 +150,38 @@ impl HnClient {
             depth += 1;
         }
 
-        let mut comments = Vec::new();
-        let mut stack: Vec<(u64, usize)> = story.kids.iter().rev().map(|&id| (id, 0)).collect();
+        Ok(build_comment_tree(items, &attempted, &story.kids))
+    }
+}
 
-        while let Some((id, depth)) = stack.pop() {
-            if let Some(mut item) = items.remove(&id) {
-                // Filter kids that were attempted but not fetched (deleted/dead).
-                // Keep kids that were never attempted (beyond max_depth) so UI shows
-                // they have replies even if we can't display them.
-                item.kids
-                    .retain(|kid_id| !attempted.contains(kid_id) || items.contains_key(kid_id));
+/// Builds a DFS-ordered comment tree from fetched items.
+///
+/// Filters kids that were attempted but not fetched (deleted/dead), while
+/// keeping kids that were never attempted (beyond max_depth) so UI shows
+/// they have replies even if we can't display them.
+pub fn build_comment_tree(
+    mut items: HashMap<u64, HnItem>,
+    attempted: &std::collections::HashSet<u64>,
+    root_kids: &[u64],
+) -> Vec<Comment> {
+    let mut comments = Vec::new();
+    let mut stack: Vec<(u64, usize)> = root_kids.iter().rev().map(|&id| (id, 0)).collect();
 
-                // Reverse order so first child is processed first
-                for &kid_id in item.kids.iter().rev() {
-                    stack.push((kid_id, depth + 1));
-                }
-                if let Some(comment) = Comment::from_item(item, depth) {
-                    comments.push(comment);
-                }
+    while let Some((id, depth)) = stack.pop() {
+        if let Some(mut item) = items.remove(&id) {
+            item.kids
+                .retain(|kid_id| !attempted.contains(kid_id) || items.contains_key(kid_id));
+
+            for &kid_id in item.kids.iter().rev() {
+                stack.push((kid_id, depth + 1));
+            }
+            if let Some(comment) = Comment::from_item(item, depth) {
+                comments.push(comment);
             }
         }
-
-        Ok(comments)
     }
+
+    comments
 }
 
 impl Default for HnClient {
@@ -215,6 +224,24 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
+    fn make_comment_item(id: u64, by: &str, text: &str, kids: Vec<u64>) -> HnItem {
+        HnItem {
+            id,
+            item_type: Some("comment".to_string()),
+            by: Some(by.to_string()),
+            time: Some(1700000000),
+            text: Some(text.to_string()),
+            url: None,
+            score: None,
+            title: None,
+            descendants: None,
+            kids,
+            parent: None,
+            deleted: None,
+            dead: None,
+        }
+    }
+
     #[tokio::test]
     async fn test_client_creation() {
         let client = HnClient::new();
@@ -230,75 +257,19 @@ mod tests {
         let mut attempted: HashSet<u64> = HashSet::new();
 
         // Parent comment with kids [2, 3] - child 3 was attempted but deleted
-        items.insert(
-            1,
-            HnItem {
-                id: 1,
-                item_type: Some("comment".to_string()),
-                by: Some("parent".to_string()),
-                time: Some(1700000000),
-                text: Some("Parent comment".to_string()),
-                url: None,
-                score: None,
-                title: None,
-                descendants: None,
-                kids: vec![2, 3],
-                parent: None,
-                deleted: None,
-                dead: None,
-            },
-        );
+        items.insert(1, make_comment_item(1, "parent", "Parent comment", vec![2, 3]));
+        items.insert(2, make_comment_item(2, "child", "Child comment", vec![]));
 
-        // Child 2 exists and was fetched
-        items.insert(
-            2,
-            HnItem {
-                id: 2,
-                item_type: Some("comment".to_string()),
-                by: Some("child".to_string()),
-                time: Some(1700000000),
-                text: Some("Child comment".to_string()),
-                url: None,
-                score: None,
-                title: None,
-                descendants: None,
-                kids: vec![],
-                parent: Some(1),
-                deleted: None,
-                dead: None,
-            },
-        );
-
-        // Both children were attempted
+        // Both children were attempted, but child 3 was deleted (not in items)
         attempted.insert(2);
         attempted.insert(3);
-        // But child 3 was deleted, so it's not in items
 
-        // Simulate the filtering logic from fetch_comments_flat
-        let mut comments = Vec::new();
-        let mut stack: Vec<(u64, usize)> = vec![(1, 0)];
-
-        while let Some((id, depth)) = stack.pop() {
-            if let Some(mut item) = items.remove(&id) {
-                item.kids
-                    .retain(|kid_id| !attempted.contains(kid_id) || items.contains_key(kid_id));
-
-                for &kid_id in item.kids.iter().rev() {
-                    stack.push((kid_id, depth + 1));
-                }
-                if let Some(comment) = Comment::from_item(item, depth) {
-                    comments.push(comment);
-                }
-            }
-        }
+        let comments = build_comment_tree(items, &attempted, &[1]);
 
         assert_eq!(comments.len(), 2);
-
-        // Parent should only have 1 kid now (child 3 was filtered out)
         let parent = &comments[0];
         assert_eq!(parent.id, 1);
-        assert_eq!(parent.kids.len(), 1);
-        assert_eq!(parent.kids[0], 2);
+        assert_eq!(parent.kids, vec![2]);
     }
 
     /// Verifies that a comment whose only child was deleted ends up with
@@ -310,34 +281,16 @@ mod tests {
 
         items.insert(
             1,
-            HnItem {
-                id: 1,
-                item_type: Some("comment".to_string()),
-                by: Some("author".to_string()),
-                time: Some(1700000000),
-                text: Some("Comment with deleted reply".to_string()),
-                url: None,
-                score: None,
-                title: None,
-                descendants: None,
-                kids: vec![999], // This child was deleted
-                parent: None,
-                deleted: None,
-                dead: None,
-            },
+            make_comment_item(1, "author", "Comment with deleted reply", vec![999]),
         );
 
         // Child 999 was attempted but deleted (not in items)
         attempted.insert(999);
 
-        let mut item = items.remove(&1).unwrap();
-        item.kids
-            .retain(|kid_id| !attempted.contains(kid_id) || items.contains_key(kid_id));
+        let comments = build_comment_tree(items, &attempted, &[1]);
 
-        let comment = Comment::from_item(item, 0).unwrap();
-
-        // Kids should be empty since child 999 was attempted but deleted
-        assert!(comment.kids.is_empty());
+        assert_eq!(comments.len(), 1);
+        assert!(comments[0].kids.is_empty());
     }
 
     /// Verifies that children beyond max_depth (never attempted) are kept in
@@ -345,39 +298,18 @@ mod tests {
     #[test]
     fn test_children_beyond_max_depth_kept_in_kids() {
         let mut items: HashMap<u64, HnItem> = HashMap::new();
-        let attempted: HashSet<u64> = HashSet::new(); // Nothing beyond this comment was attempted
+        let attempted: HashSet<u64> = HashSet::new();
 
         // Comment at max_depth with a child that was never fetched
         items.insert(
             1,
-            HnItem {
-                id: 1,
-                item_type: Some("comment".to_string()),
-                by: Some("deep_commenter".to_string()),
-                time: Some(1700000000),
-                text: Some("Comment at max depth".to_string()),
-                url: None,
-                score: None,
-                title: None,
-                descendants: None,
-                kids: vec![999], // This child exists but wasn't fetched (beyond max_depth)
-                parent: None,
-                deleted: None,
-                dead: None,
-            },
+            make_comment_item(1, "deep_commenter", "Comment at max depth", vec![999]),
         );
 
         // Child 999 was NOT attempted (beyond max_depth)
+        let comments = build_comment_tree(items, &attempted, &[1]);
 
-        let mut item = items.remove(&1).unwrap();
-        item.kids
-            .retain(|kid_id| !attempted.contains(kid_id) || items.contains_key(kid_id));
-
-        let comment = Comment::from_item(item, 0).unwrap();
-
-        // Kids should still contain 999 since it was never attempted
-        // (exists beyond max_depth, not deleted)
-        assert_eq!(comment.kids.len(), 1);
-        assert_eq!(comment.kids[0], 999);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0].kids, vec![999]);
     }
 }
