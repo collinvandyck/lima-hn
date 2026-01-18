@@ -177,7 +177,11 @@ impl HnClient {
         match self.fetch_comments_algolia(story.id).await {
             Ok(comments) => {
                 self.save_comments(story.id, &comments).await?;
-                info!(count = comments.len(), source = "algolia", "fetched comments");
+                info!(
+                    count = comments.len(),
+                    source = "algolia",
+                    "fetched comments"
+                );
                 return Ok(comments);
             }
             Err(e) => {
@@ -188,7 +192,11 @@ impl HnClient {
         // Fall back to Firebase (BFS, no depth limit)
         let comments = self.fetch_comments_firebase(story).await?;
         self.save_comments(story.id, &comments).await?;
-        info!(count = comments.len(), source = "firebase", "fetched comments");
+        info!(
+            count = comments.len(),
+            source = "firebase",
+            "fetched comments"
+        );
         Ok(comments)
     }
 
