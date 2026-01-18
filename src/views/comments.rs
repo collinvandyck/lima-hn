@@ -243,7 +243,7 @@ fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     use super::spinner::spinner_frame;
 
     let help_text = if app.show_help {
-        "j/k:nav  l/h:expand  L/H:subtree  +/-:thread  o:story  c:link  Esc:back  r:refresh  `:debug  q:quit  ?:hide"
+        "j/k:nav  l/h:expand  L/H:subtree  +/-:thread  o:story  c:link  Esc:back  r:refresh  t:themes  `:debug  q:quit  ?:hide"
     } else {
         "l/h:expand  L/H:subtree  +/-:thread  Esc:back  ?:help"
     };
