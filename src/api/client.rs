@@ -168,7 +168,7 @@ impl HnClient {
             && let Some(storage) = &self.storage
             && let Ok(Some(cached)) = storage.get_fresh_comments(story.id).await
         {
-            info!(count = cached.len(), "comments cache hit");
+            info!(count = cached.len(), source = "cache", "loaded comments");
             let comments: Vec<Comment> = cached.into_iter().map(|c| c.into()).collect();
             return Ok(order_cached_comments(comments, &story.kids));
         }
@@ -177,18 +177,18 @@ impl HnClient {
         match self.fetch_comments_algolia(story.id).await {
             Ok(comments) => {
                 self.save_comments(story.id, &comments).await?;
-                info!(count = comments.len(), "fetched comments via Algolia");
+                info!(count = comments.len(), source = "algolia", "fetched comments");
                 return Ok(comments);
             }
             Err(e) => {
-                warn!("Algolia fetch failed, falling back to Firebase: {}", e);
+                warn!(source = "algolia", error = %e, "fetch failed, falling back to Firebase");
             }
         }
 
         // Fall back to Firebase (BFS, no depth limit)
         let comments = self.fetch_comments_firebase(story).await?;
         self.save_comments(story.id, &comments).await?;
-        info!(count = comments.len(), "fetched comments via Firebase");
+        info!(count = comments.len(), source = "firebase", "fetched comments");
         Ok(comments)
     }
 
