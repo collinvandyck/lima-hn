@@ -127,14 +127,12 @@ impl Storage {
     }
 
     #[cfg(test)]
-    pub async fn open_in_memory() -> Result<Self, StorageError> {
+    pub fn open_in_memory() -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel(64);
-
         std::thread::spawn(move || {
             db::worker_in_memory(cmd_rx);
         });
-
-        Ok(Self { cmd_tx })
+        Self { cmd_tx }
     }
 
     pub async fn save_story(&self, story: &StorableStory) -> Result<(), StorageError> {
@@ -246,7 +244,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_story_round_trip() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
 
         let story = StorableStory {
             id: 123,
@@ -273,7 +271,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_story_freshness() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
 
         let old_story = StorableStory {
             id: 456,
@@ -300,7 +298,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comments_round_trip() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
 
         // First save the story (comments have a foreign key to stories)
         let story = StorableStory {
@@ -353,7 +351,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_round_trip() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
 
         let ids = vec![100, 101, 102, 103, 104];
         storage.save_feed(Feed::Top, &ids).await.unwrap();
@@ -366,14 +364,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_nonexistent_story_returns_none() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
         let loaded = storage.get_story(999999).await.unwrap();
         assert!(loaded.is_none());
     }
 
     #[tokio::test]
     async fn test_comments_upsert_updates_existing() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
         let story = StorableStory {
             id: 123,
             title: "Test".to_string(),
@@ -420,7 +418,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comments_upsert_deletes_orphans() {
-        let storage = Storage::open_in_memory().await.unwrap();
+        let storage = Storage::open_in_memory();
         let story = StorableStory {
             id: 123,
             title: "Test".to_string(),
