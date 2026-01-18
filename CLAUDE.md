@@ -102,6 +102,10 @@ lima-hn theme path             # Custom themes directory
 
 Themes define semantic colors (story_title, story_score, comment_depth_colors, etc.). See `src/theme/builtin.rs` for examples. Custom themes go in `~/.config/lima-hn/themes/*.toml`.
 
+## Writing Style
+
+User-facing prose (README, help text, CLI output) should be lowercase and wry. Understated rather than enthusiastic. Dry humor lives in small word choices, not jokes. Don't try too hard. State what things do without overselling. See README.md for the voice.
+
 ## Code Style
 
 **Modular code:** Keep functions focused and composable. Prefer small, single-purpose modules over large files.
