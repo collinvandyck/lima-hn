@@ -163,7 +163,7 @@ mod tests {
     }
 
     fn test_app() -> App {
-        App::new(default_for_variant(ThemeVariant::Dark), None)
+        App::new(default_for_variant(ThemeVariant::Dark), None, None)
     }
 
     fn comments_app() -> App {

@@ -5,6 +5,7 @@ use tokio::sync::RwLock;
 
 use super::error::ApiError;
 use super::types::{Comment, Feed, HnItem, Story};
+use crate::storage::{StorableComment, StorableStory, Storage};
 
 const API_BASE: &str = "https://hacker-news.firebaseio.com/v0";
 const CACHE_TTL: Duration = Duration::from_secs(60);
@@ -24,6 +25,7 @@ impl<T> CacheEntry<T> {
 pub struct HnClient {
     http: reqwest::Client,
     item_cache: Arc<RwLock<HashMap<u64, CacheEntry<HnItem>>>>,
+    storage: Option<Storage>,
 }
 
 impl HnClient {
@@ -34,7 +36,12 @@ impl HnClient {
                 .build()
                 .expect("Failed to create HTTP client"),
             item_cache: Arc::new(RwLock::new(HashMap::new())),
+            storage: None,
         }
+    }
+
+    pub fn set_storage(&mut self, storage: Storage) {
+        self.storage = Some(storage);
     }
 
     pub async fn clear_cache(&self) {
@@ -102,14 +109,51 @@ impl HnClient {
     }
 
     pub async fn fetch_stories_by_ids(&self, ids: &[u64]) -> Result<Vec<Story>, ApiError> {
-        let futures: Vec<_> = ids.iter().map(|&id| self.fetch_item(id)).collect();
-        let results = futures::future::join_all(futures).await;
+        let mut stories = Vec::with_capacity(ids.len());
+        let mut to_fetch = Vec::new();
 
-        let stories: Vec<Story> = results
-            .into_iter()
-            .filter_map(|r| r.ok())
-            .filter_map(Story::from_item)
-            .collect();
+        // Check storage for cached stories
+        if let Some(storage) = &self.storage {
+            for &id in ids {
+                if let Ok(Some(cached)) = storage.get_fresh_story(id).await {
+                    stories.push(cached.into());
+                } else {
+                    to_fetch.push(id);
+                }
+            }
+        } else {
+            to_fetch.extend_from_slice(ids);
+        }
+
+        // Fetch remaining from API
+        if !to_fetch.is_empty() {
+            let futures: Vec<_> = to_fetch.iter().map(|&id| self.fetch_item(id)).collect();
+            let results = futures::future::join_all(futures).await;
+
+            let fetched: Vec<Story> = results
+                .into_iter()
+                .filter_map(|r| r.ok())
+                .filter_map(Story::from_item)
+                .collect();
+
+            // Write-through to storage (fire-and-forget)
+            if let Some(storage) = &self.storage {
+                for story in &fetched {
+                    let storage = storage.clone();
+                    let storable = StorableStory::from(story);
+                    tokio::spawn(async move {
+                        let _ = storage.save_story(&storable).await;
+                    });
+                }
+            }
+
+            stories.extend(fetched);
+        }
+
+        // Re-sort by original id order
+        let id_positions: HashMap<u64, usize> =
+            ids.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+        stories.sort_by_key(|s| id_positions.get(&s.id).copied().unwrap_or(usize::MAX));
 
         Ok(stories)
     }
@@ -121,6 +165,13 @@ impl HnClient {
         max_depth: usize,
     ) -> Result<Vec<Comment>, ApiError> {
         use std::collections::HashSet;
+
+        // Check storage for cached comments
+        if let Some(storage) = &self.storage
+            && let Ok(Some(cached)) = storage.get_fresh_comments(story.id).await
+        {
+            return Ok(cached.into_iter().map(|c| c.into()).collect());
+        }
 
         let mut items: HashMap<u64, HnItem> = HashMap::new();
         let mut attempted: HashSet<u64> = HashSet::new();
@@ -148,8 +199,34 @@ impl HnClient {
             depth += 1;
         }
 
-        Ok(build_comment_tree(items, &attempted, &story.kids))
+        let comments = build_comment_tree(items, &attempted, &story.kids);
+
+        // Write-through to storage (fire-and-forget)
+        if let Some(storage) = &self.storage {
+            let storage = storage.clone();
+            let story_id = story.id;
+            let storable: Vec<StorableComment> = comments
+                .iter()
+                .map(|c| {
+                    StorableComment::from_comment(c, story_id, find_parent_id(&comments, c.id))
+                })
+                .collect();
+            tokio::spawn(async move {
+                let _ = storage.save_comments(story_id, &storable).await;
+            });
+        }
+
+        Ok(comments)
     }
+}
+
+fn find_parent_id(comments: &[Comment], comment_id: u64) -> Option<u64> {
+    for c in comments {
+        if c.kids.contains(&comment_id) {
+            return Some(c.id);
+        }
+    }
+    None
 }
 
 /// Builds a DFS-ordered comment tree from fetched items.
@@ -193,6 +270,7 @@ impl Clone for HnClient {
         Self {
             http: self.http.clone(),
             item_cache: Arc::clone(&self.item_cache),
+            storage: self.storage.clone(),
         }
     }
 }

@@ -5,6 +5,7 @@ mod comment_tree;
 mod event;
 mod keys;
 mod settings;
+mod storage;
 mod theme;
 mod time;
 mod tui;
@@ -23,6 +24,7 @@ use app::{App, Message, View};
 use cli::{Cli, Commands, OutputFormat, ThemeArgs, ThemeCommands};
 use event::Event;
 use settings::Settings;
+use storage::Storage;
 use theme::{
     ResolvedTheme, ThemeVariant, all_themes, by_name, default_for_variant, detect_terminal_theme,
     load_theme_file,
@@ -131,7 +133,6 @@ fn resolve_theme(
 
 async fn run_tui(cli: Cli) -> Result<()> {
     let config_dir = settings::config_dir(cli.config_dir.as_ref());
-
     let settings = config_dir
         .as_ref()
         .map(|dir| {
@@ -142,10 +143,20 @@ async fn run_tui(cli: Cli) -> Result<()> {
             })
         })
         .unwrap_or_default();
-
+    let storage = if let Some(ref dir) = config_dir {
+        match Storage::open(&settings::db_path(dir)).await {
+            Ok(s) => Some(s),
+            Err(e) => {
+                eprintln!("Storage disabled: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
     let resolved_theme = resolve_theme(&cli, &settings, config_dir.as_ref())?;
     let mut terminal = tui::init()?;
-    let mut app = App::new(resolved_theme, config_dir);
+    let mut app = App::new(resolved_theme, config_dir, storage);
     let mut events = EventHandler::new(250);
     let mut last_height: Option<u16> = None;
 

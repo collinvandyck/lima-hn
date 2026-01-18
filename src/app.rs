@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 use crate::api::{ApiError, Comment, Feed, HnClient, Story};
 use crate::comment_tree::CommentTree;
 use crate::settings::{self, Settings};
+use crate::storage::Storage;
 use crate::theme::{ResolvedTheme, Theme, all_themes};
 use crate::time::Clock;
 
@@ -218,8 +219,16 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(theme: ResolvedTheme, config_dir: Option<PathBuf>) -> Self {
+    pub fn new(
+        theme: ResolvedTheme,
+        config_dir: Option<PathBuf>,
+        storage: Option<Storage>,
+    ) -> Self {
         let (result_tx, result_rx) = mpsc::channel(10);
+        let mut client = HnClient::new();
+        if let Some(s) = storage {
+            client.set_storage(s);
+        }
         Self {
             view: View::default(),
             feed: Feed::default(),
@@ -229,7 +238,7 @@ impl App {
             load: LoadState::new(),
             should_quit: false,
             show_help: false,
-            client: HnClient::new(),
+            client,
             scroll_offset: 0,
             theme,
             clock: crate::time::system_clock(),
@@ -834,7 +843,7 @@ mod tests {
     use crate::theme::{ThemeVariant, default_for_variant};
 
     fn test_app() -> App {
-        App::new(default_for_variant(ThemeVariant::Dark), None)
+        App::new(default_for_variant(ThemeVariant::Dark), None, None)
     }
 
     #[test]

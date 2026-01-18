@@ -81,6 +81,10 @@ pub fn themes_dir(config_dir: &Path) -> PathBuf {
     config_dir.join("themes")
 }
 
+pub fn db_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("data.db")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

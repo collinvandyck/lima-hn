@@ -19,7 +19,7 @@ check:
     cargo check --all --tests
 
 lint:
-    cargo clippy --all --tests -- -D warnings
+    cargo clippy --all --tests -- -D warnings -D dead_code
 
 fmt:
     cargo +nightly fmt
