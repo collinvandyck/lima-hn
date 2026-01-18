@@ -1,36 +1,11 @@
 use rusqlite::Connection;
-use std::path::PathBuf;
 use tokio::sync::mpsc;
 
-use super::migrations::run_migrations;
+use super::StorageCommand;
+pub use super::migrations::run_migrations;
 use super::queries;
-use super::{StorageCommand, StorageError};
-use anyhow::Result;
 
-pub fn worker(
-    db_path: PathBuf,
-    cmd_rx: mpsc::Receiver<StorageCommand>,
-) -> Result<(), StorageError> {
-    let parent = db_path.parent().ok_or(StorageError::NoDbPathParent)?;
-    if !parent.exists() {
-        std::fs::create_dir_all(parent).map_err(StorageError::IO)?;
-    }
-    let conn = Connection::open(&db_path)?;
-    run_migrations(&conn)?;
-    std::thread::spawn(move || {
-        run_worker(conn, cmd_rx);
-    });
-    Ok(())
-}
-
-#[cfg(test)]
-pub fn worker_in_memory(cmd_rx: mpsc::Receiver<StorageCommand>) {
-    let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
-    run_migrations(&conn).expect("Failed to run migrations");
-    run_worker(conn, cmd_rx);
-}
-
-fn run_worker(conn: Connection, mut cmd_rx: mpsc::Receiver<StorageCommand>) {
+pub fn run_worker(conn: Connection, mut cmd_rx: mpsc::Receiver<StorageCommand>) {
     while let Some(cmd) = cmd_rx.blocking_recv() {
         match cmd {
             StorageCommand::SaveStory { story, reply } => {

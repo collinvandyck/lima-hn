@@ -24,7 +24,7 @@ use cli::{Cli, Commands, OutputFormat, ThemeArgs, ThemeCommands};
 use event::Event;
 use ratatui::Frame;
 use settings::Settings;
-use storage::Storage;
+use storage::{Storage, StorageLocation};
 use theme::{
     ResolvedTheme, ThemeVariant, all_themes, by_name, default_for_variant, detect_terminal_theme,
     load_theme_file,
@@ -151,8 +151,7 @@ async fn run_tui(cli: Cli, mut terminal: tui::Tui) -> Result<()> {
             let path = settings::settings_path(dir);
             let settings = Settings::load(&path)
                 .with_context(|| format!("Failed to load settings from {}", path.display()))?;
-            let storage = Storage::open(&settings::db_path(dir))
-                .await
+            let storage = Storage::open(StorageLocation::Path(settings::db_path(dir)))
                 .context("Failed to open storage database")?;
             (settings, Some(storage))
         }

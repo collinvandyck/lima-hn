@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use crate::api::{Comment, Feed, HnClient, Story};
 use crate::app::{App, DebugState, LoadState, View};
 use crate::comment_tree::CommentTree;
-use crate::storage::Storage;
+use crate::storage::{Storage, StorageLocation};
 use crate::theme::{ResolvedTheme, ThemeVariant, default_for_variant};
 use crate::time::{Clock, fixed_clock};
 
@@ -337,7 +337,7 @@ impl TestAppBuilder {
             load,
             should_quit: false,
             show_help: self.show_help,
-            client: HnClient::new(Some(Storage::open_in_memory())),
+            client: HnClient::new(Some(Storage::open(StorageLocation::InMemory).unwrap())),
             scroll_offset: self.scroll_offset,
             theme: self.theme,
             clock: self.clock,

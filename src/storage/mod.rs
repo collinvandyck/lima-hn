@@ -4,9 +4,10 @@ mod queries;
 mod types;
 
 use std::io;
-use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
+use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
 pub use types::{CachedFeed, StorableComment, StorableStory};
@@ -15,6 +16,12 @@ use crate::api::Feed;
 use crate::settings::Settings;
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
+
+pub enum StorageLocation {
+    Path(PathBuf),
+    #[cfg(test)]
+    InMemory,
+}
 
 #[derive(Debug)]
 pub enum StorageError {
@@ -108,31 +115,27 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub async fn open(path: &Path) -> Result<Self, StorageError> {
-        let config_dir = path.parent().expect("database path should have parent");
-        let settings_path = config_dir.join("settings.toml");
-
-        if settings_path.exists() {
-            Settings::load(&settings_path)
-                .map_err(|e| StorageError::SettingsValidation(e.to_string()))?;
-        }
-
+    pub fn open(location: StorageLocation) -> Result<Self, StorageError> {
         let (cmd_tx, cmd_rx) = mpsc::channel(64);
-        let db_path = path.to_path_buf();
 
-        db::worker(db_path, cmd_rx)?;
-        std::thread::spawn(move || {});
+        let conn = match location {
+            StorageLocation::Path(path) => {
+                let parent = path.parent().ok_or(StorageError::NoDbPathParent)?;
+                if !parent.exists() {
+                    std::fs::create_dir_all(parent).map_err(StorageError::IO)?;
+                }
+                Connection::open(&path)?
+            }
+            #[cfg(test)]
+            StorageLocation::InMemory => Connection::open_in_memory()?,
+        };
+
+        db::run_migrations(&conn)?;
+        std::thread::spawn(move || {
+            db::run_worker(conn, cmd_rx);
+        });
 
         Ok(Self { cmd_tx })
-    }
-
-    #[cfg(test)]
-    pub fn open_in_memory() -> Self {
-        let (cmd_tx, cmd_rx) = mpsc::channel(64);
-        std::thread::spawn(move || {
-            db::worker_in_memory(cmd_rx);
-        });
-        Self { cmd_tx }
     }
 
     pub async fn save_story(&self, story: &StorableStory) -> Result<(), StorageError> {
@@ -244,7 +247,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_story_round_trip() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
 
         let story = StorableStory {
             id: 123,
@@ -271,7 +274,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_story_freshness() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
 
         let old_story = StorableStory {
             id: 456,
@@ -298,7 +301,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comments_round_trip() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
 
         // First save the story (comments have a foreign key to stories)
         let story = StorableStory {
@@ -351,7 +354,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_round_trip() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
 
         let ids = vec![100, 101, 102, 103, 104];
         storage.save_feed(Feed::Top, &ids).await.unwrap();
@@ -364,14 +367,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_nonexistent_story_returns_none() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
         let loaded = storage.get_story(999999).await.unwrap();
         assert!(loaded.is_none());
     }
 
     #[tokio::test]
     async fn test_comments_upsert_updates_existing() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
         let story = StorableStory {
             id: 123,
             title: "Test".to_string(),
@@ -418,7 +421,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comments_upsert_deletes_orphans() {
-        let storage = Storage::open_in_memory();
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
         let story = StorableStory {
             id: 123,
             title: "Test".to_string(),
