@@ -23,7 +23,7 @@ pub fn by_name(name: &str) -> Option<Theme> {
 
 pub fn default_for_variant(variant: ThemeVariant) -> ResolvedTheme {
     match variant {
-        ThemeVariant::Dark => default_dark().into(),
+        ThemeVariant::Dark => monokai().into(),
         ThemeVariant::Light => default_light().into(),
     }
 }
