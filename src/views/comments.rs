@@ -50,7 +50,7 @@ fn render_header(frame: &mut Frame, title: &str, area: Rect, theme: &ResolvedThe
 fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
     let theme = &app.theme;
 
-    if app.loading {
+    if app.load.loading {
         let loading = Paragraph::new("Loading comments...")
             .style(Style::default().fg(theme.warning))
             .block(
@@ -63,7 +63,7 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
-    if let Some(err) = &app.error {
+    if let Some(err) = &app.load.error {
         let error = Paragraph::new(err.as_str())
             .style(Style::default().fg(theme.error))
             .block(
@@ -229,8 +229,11 @@ fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
         "l/h:expand  L/H:subtree  +/-:thread  Esc:back  ?:help"
     };
 
-    let loading_text = if app.loading {
-        Some(format!("{} Loading...", spinner_frame(app.loading_start)))
+    let loading_text = if app.load.loading {
+        Some(format!(
+            "{} Loading...",
+            spinner_frame(app.load.loading_start)
+        ))
     } else {
         None
     };

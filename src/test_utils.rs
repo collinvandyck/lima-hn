@@ -1,13 +1,12 @@
 //! Test data builders for view testing.
 
-use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Instant;
 
 use tokio::sync::mpsc;
 
 use crate::api::{Comment, Feed, HnClient, Story};
-use crate::app::{App, View};
+use crate::app::{App, DebugState, LoadState, View};
 use crate::comment_tree::CommentTree;
 use crate::theme::{ResolvedTheme, ThemeVariant, default_for_variant};
 use crate::time::{Clock, fixed_clock};
@@ -196,7 +195,6 @@ pub struct TestAppBuilder {
     scroll_offset: usize,
     theme: ResolvedTheme,
     clock: Arc<dyn Clock>,
-    debug_visible: bool,
     viewport_height: Option<u16>,
 }
 
@@ -226,7 +224,6 @@ impl TestAppBuilder {
             scroll_offset: 0,
             theme: default_for_variant(ThemeVariant::Dark),
             clock: fixed_clock(TEST_NOW),
-            debug_visible: false,
             viewport_height: None,
         }
     }
@@ -312,18 +309,23 @@ impl TestAppBuilder {
             comment_tree.expand(id);
         }
 
-        App {
-            view: self.view,
-            feed: self.feed,
-            stories: self.stories,
-            comment_tree,
-            selected_index: self.selected_index,
+        // Build load state
+        let load = LoadState {
             loading: self.loading,
             loading_start: self.loading_start,
             loading_more: self.loading_more,
             current_page: self.current_page,
             has_more: self.has_more,
             error: self.error,
+        };
+
+        App {
+            view: self.view,
+            feed: self.feed,
+            stories: self.stories,
+            comment_tree,
+            selected_index: self.selected_index,
+            load,
             should_quit: false,
             show_help: self.show_help,
             client: HnClient::new(),
@@ -333,10 +335,7 @@ impl TestAppBuilder {
             result_tx,
             result_rx,
             generation: 0,
-            debug_visible: self.debug_visible,
-            running_tasks: Vec::new(),
-            debug_log: VecDeque::new(),
-            next_task_id: 0,
+            debug: DebugState::new(),
             viewport_height: self.viewport_height,
         }
     }

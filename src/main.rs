@@ -168,7 +168,7 @@ fn render(app: &App, frame: &mut Frame) {
     let area = frame.area();
 
     // Split area for debug pane if visible
-    let (main_area, debug_area) = if app.debug_visible {
+    let (main_area, debug_area) = if app.debug.visible {
         let chunks = Layout::vertical([
             Constraint::Min(0),     // Main content
             Constraint::Length(10), // Debug pane

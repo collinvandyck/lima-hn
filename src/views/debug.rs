@@ -19,7 +19,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let mut lines = Vec::new();
 
     // Running tasks
-    let task_count = app.running_tasks.len();
+    let task_count = app.debug.running_tasks.len();
     lines.push(Line::from(vec![
         Span::styled("Tasks: ", Style::default().fg(theme.foreground_dim)),
         Span::styled(
@@ -32,7 +32,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         ),
     ]));
 
-    for task in &app.running_tasks {
+    for task in &app.debug.running_tasks {
         let elapsed = task.started_at.elapsed();
         lines.push(Line::from(vec![
             Span::styled("  ", Style::default()),
@@ -49,15 +49,15 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     // Separator
-    if !app.running_tasks.is_empty() {
+    if !app.debug.running_tasks.is_empty() {
         lines.push(Line::from(""));
     }
 
     // Recent log entries (newest first, limit to fit area)
     let available_lines = area.height.saturating_sub(3) as usize; // 3 for border + tasks header
-    let log_lines = available_lines.saturating_sub(app.running_tasks.len() + 1);
+    let log_lines = available_lines.saturating_sub(app.debug.running_tasks.len() + 1);
 
-    for entry in app.debug_log.iter().rev().take(log_lines) {
+    for entry in app.debug.log.iter().rev().take(log_lines) {
         lines.push(Line::from(vec![Span::styled(
             format!("  {}", entry.message),
             Style::default().fg(theme.foreground_dim),

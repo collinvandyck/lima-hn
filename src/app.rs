@@ -27,14 +27,112 @@ pub enum AsyncResult {
     },
 }
 
+#[derive(Debug)]
 pub struct TaskInfo {
     pub id: u64,
     pub description: String,
     pub started_at: Instant,
 }
 
+#[derive(Debug)]
 pub struct LogEntry {
     pub message: String,
+}
+
+/// Debug panel state: task tracking and log messages.
+#[derive(Debug, Default)]
+pub struct DebugState {
+    pub visible: bool,
+    pub running_tasks: Vec<TaskInfo>,
+    pub log: VecDeque<LogEntry>,
+    next_task_id: u64,
+}
+
+impl DebugState {
+    const MAX_LOG_ENTRIES: usize = 50;
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn log(&mut self, msg: impl Into<String>) {
+        self.log.push_back(LogEntry {
+            message: msg.into(),
+        });
+        if self.log.len() > Self::MAX_LOG_ENTRIES {
+            self.log.pop_front();
+        }
+    }
+
+    pub fn start_task(&mut self, description: impl Into<String>) -> u64 {
+        let id = self.next_task_id;
+        self.next_task_id += 1;
+        let desc = description.into();
+        self.log(format!("Started: {}", desc));
+        self.running_tasks.push(TaskInfo {
+            id,
+            description: desc,
+            started_at: Instant::now(),
+        });
+        id
+    }
+
+    pub fn end_task(&mut self, id: u64, outcome: &str) {
+        if let Some(pos) = self.running_tasks.iter().position(|t| t.id == id) {
+            let task = self.running_tasks.remove(pos);
+            let elapsed = task.started_at.elapsed();
+            self.log(format!("{} {}: {:.2?}", task.description, outcome, elapsed));
+        }
+    }
+
+    pub fn toggle(&mut self) {
+        self.visible = !self.visible;
+    }
+}
+
+/// Loading and pagination state.
+#[derive(Debug, Default)]
+pub struct LoadState {
+    pub loading: bool,
+    pub loading_start: Option<Instant>,
+    pub loading_more: bool,
+    pub current_page: usize,
+    pub has_more: bool,
+    pub error: Option<String>,
+}
+
+impl LoadState {
+    pub fn new() -> Self {
+        Self {
+            has_more: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn set_loading(&mut self, loading: bool) {
+        self.loading = loading;
+        if loading {
+            self.loading_start = Some(Instant::now());
+        }
+        // Don't clear loading_start when done - used for minimum spinner duration
+    }
+
+    pub fn should_show_spinner(&self) -> bool {
+        const MIN_SPINNER_DURATION: std::time::Duration = std::time::Duration::from_millis(500);
+        if let Some(start) = self.loading_start {
+            self.loading || start.elapsed() < MIN_SPINNER_DURATION
+        } else {
+            false
+        }
+    }
+
+    pub fn clear_error(&mut self) {
+        self.error = None;
+    }
+
+    pub fn set_error(&mut self, msg: impl Into<String>) {
+        self.error = Some(msg.into());
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -83,12 +181,7 @@ pub struct App {
     pub stories: Vec<Story>,
     pub comment_tree: CommentTree,
     pub selected_index: usize,
-    pub loading: bool,
-    pub loading_start: Option<Instant>,
-    pub loading_more: bool,
-    pub current_page: usize,
-    pub has_more: bool,
-    pub error: Option<String>,
+    pub load: LoadState,
     pub should_quit: bool,
     pub show_help: bool,
     pub client: HnClient,
@@ -100,10 +193,7 @@ pub struct App {
     pub result_rx: mpsc::Receiver<AsyncResult>,
     pub generation: u64,
     // Debug pane
-    pub debug_visible: bool,
-    pub running_tasks: Vec<TaskInfo>,
-    pub debug_log: VecDeque<LogEntry>,
-    pub next_task_id: u64,
+    pub debug: DebugState,
     // Viewport tracking for dynamic story loading
     pub viewport_height: Option<u16>,
 }
@@ -117,12 +207,7 @@ impl App {
             stories: Vec::new(),
             comment_tree: CommentTree::new(),
             selected_index: 0,
-            loading: false,
-            loading_start: None,
-            loading_more: false,
-            current_page: 0,
-            has_more: true,
-            error: None,
+            load: LoadState::new(),
             should_quit: false,
             show_help: false,
             client: HnClient::new(),
@@ -132,58 +217,8 @@ impl App {
             result_tx,
             result_rx,
             generation: 0,
-            debug_visible: false,
-            running_tasks: Vec::new(),
-            debug_log: VecDeque::new(),
-            next_task_id: 0,
+            debug: DebugState::new(),
             viewport_height: None,
-        }
-    }
-
-    fn set_loading(&mut self, loading: bool) {
-        self.loading = loading;
-        if loading {
-            self.loading_start = Some(Instant::now());
-        }
-        // Don't clear loading_start when done - used for minimum spinner duration
-    }
-
-    pub fn should_show_spinner(&self) -> bool {
-        const MIN_SPINNER_DURATION: std::time::Duration = std::time::Duration::from_millis(500);
-        if let Some(start) = self.loading_start {
-            self.loading || start.elapsed() < MIN_SPINNER_DURATION
-        } else {
-            false
-        }
-    }
-
-    pub fn log_debug(&mut self, msg: impl Into<String>) {
-        self.debug_log.push_back(LogEntry {
-            message: msg.into(),
-        });
-        if self.debug_log.len() > 50 {
-            self.debug_log.pop_front();
-        }
-    }
-
-    fn start_task(&mut self, description: impl Into<String>) -> u64 {
-        let id = self.next_task_id;
-        self.next_task_id += 1;
-        let desc = description.into();
-        self.log_debug(format!("Started: {}", desc));
-        self.running_tasks.push(TaskInfo {
-            id,
-            description: desc,
-            started_at: Instant::now(),
-        });
-        id
-    }
-
-    fn end_task(&mut self, id: u64, outcome: &str) {
-        if let Some(pos) = self.running_tasks.iter().position(|t| t.id == id) {
-            let task = self.running_tasks.remove(pos);
-            let elapsed = task.started_at.elapsed();
-            self.log_debug(format!("{} {}: {:.2?}", task.description, outcome, elapsed));
         }
     }
 
@@ -195,10 +230,10 @@ impl App {
                 result,
             } => {
                 if generation != self.generation {
-                    self.end_task(task_id, "discarded (stale)");
+                    self.debug.end_task(task_id, "discarded (stale)");
                     return;
                 }
-                self.end_task(
+                self.debug.end_task(
                     task_id,
                     if result.is_ok() {
                         "completed"
@@ -209,7 +244,7 @@ impl App {
                 match result {
                     Ok(stories) => {
                         self.stories = stories;
-                        self.set_loading(false);
+                        self.load.set_loading(false);
                         self.selected_index = 0;
                         self.scroll_offset = 0;
                         if self.should_fill_viewport() {
@@ -217,8 +252,9 @@ impl App {
                         }
                     }
                     Err(e) => {
-                        self.error = Some(format!("Failed to load stories: {}", e));
-                        self.set_loading(false);
+                        self.load
+                            .set_error(format!("Failed to load stories: {}", e));
+                        self.load.set_loading(false);
                     }
                 }
             }
@@ -228,10 +264,10 @@ impl App {
                 result,
             } => {
                 if generation != self.generation {
-                    self.end_task(task_id, "discarded (stale)");
+                    self.debug.end_task(task_id, "discarded (stale)");
                     return;
                 }
-                self.end_task(
+                self.debug.end_task(
                     task_id,
                     if result.is_ok() {
                         "completed"
@@ -242,19 +278,19 @@ impl App {
                 match result {
                     Ok(stories) => {
                         if stories.is_empty() {
-                            self.has_more = false;
+                            self.load.has_more = false;
                         } else {
                             self.stories.extend(stories);
-                            self.current_page += 1;
+                            self.load.current_page += 1;
                         }
-                        self.loading_more = false;
+                        self.load.loading_more = false;
                         if self.should_fill_viewport() {
                             self.load_more();
                         }
                     }
                     Err(e) => {
-                        self.error = Some(format!("Failed to load more: {}", e));
-                        self.loading_more = false;
+                        self.load.set_error(format!("Failed to load more: {}", e));
+                        self.load.loading_more = false;
                     }
                 }
             }
@@ -266,10 +302,10 @@ impl App {
                 let is_current =
                     matches!(&self.view, View::Comments { story_id: id, .. } if *id == story_id);
                 if !is_current {
-                    self.end_task(task_id, "discarded (wrong view)");
+                    self.debug.end_task(task_id, "discarded (wrong view)");
                     return;
                 }
-                self.end_task(
+                self.debug.end_task(
                     task_id,
                     if result.is_ok() {
                         "completed"
@@ -280,11 +316,12 @@ impl App {
                 match result {
                     Ok(comments) => {
                         self.comment_tree.set(comments);
-                        self.set_loading(false);
+                        self.load.set_loading(false);
                     }
                     Err(e) => {
-                        self.error = Some(format!("Failed to load comments: {}", e));
-                        self.set_loading(false);
+                        self.load
+                            .set_error(format!("Failed to load comments: {}", e));
+                        self.load.set_loading(false);
                     }
                 }
             }
@@ -292,7 +329,7 @@ impl App {
     }
 
     pub fn update(&mut self, msg: Message) {
-        self.error = None;
+        self.load.clear_error();
 
         match msg {
             Message::SelectNext => {
@@ -329,7 +366,7 @@ impl App {
             Message::Quit => self.should_quit = true,
             Message::Refresh => self.refresh(),
             Message::ToggleHelp => self.show_help = !self.show_help,
-            Message::ToggleDebug => self.debug_visible = !self.debug_visible,
+            Message::ToggleDebug => self.debug.toggle(),
             Message::SwitchFeed(feed) => self.switch_feed(feed),
             Message::NextFeed => self.cycle_feed(1),
             Message::PrevFeed => self.cycle_feed(-1),
@@ -529,7 +566,7 @@ impl App {
                 story_index,
                 story_scroll,
             };
-            self.set_loading(true);
+            self.load.set_loading(true);
             self.comment_tree.clear();
             self.selected_index = 0;
             self.scroll_offset = 0;
@@ -555,14 +592,14 @@ impl App {
         match &self.view {
             View::Stories => {
                 self.generation += 1;
-                self.set_loading(true);
-                self.current_page = 0;
-                self.has_more = true;
+                self.load.set_loading(true);
+                self.load.current_page = 0;
+                self.load.has_more = true;
                 self.spawn_stories_fetch(0, true, false);
             }
             View::Comments { story_id, .. } => {
                 if let Some(story) = self.stories.iter().find(|s| s.id == *story_id).cloned() {
-                    self.set_loading(true);
+                    self.load.set_loading(true);
                     self.spawn_comments_fetch(story, true);
                 }
             }
@@ -586,20 +623,20 @@ impl App {
 
     pub fn load_stories(&mut self) {
         self.generation += 1;
-        self.set_loading(true);
-        self.error = None;
+        self.load.set_loading(true);
+        self.load.clear_error();
         self.stories.clear();
-        self.current_page = 0;
-        self.has_more = true;
+        self.load.current_page = 0;
+        self.load.has_more = true;
         self.spawn_stories_fetch(0, false, false);
     }
 
     fn should_load_more(&self) -> bool {
         const THRESHOLD: usize = 5;
         matches!(self.view, View::Stories)
-            && !self.loading
-            && !self.loading_more
-            && self.has_more
+            && !self.load.loading
+            && !self.load.loading_more
+            && self.load.has_more
             && !self.stories.is_empty()
             && self.selected_index + THRESHOLD >= self.stories.len()
     }
@@ -615,20 +652,20 @@ impl App {
 
     fn should_fill_viewport(&self) -> bool {
         matches!(self.view, View::Stories)
-            && !self.loading
-            && !self.loading_more
-            && self.has_more
+            && !self.load.loading
+            && !self.load.loading_more
+            && self.load.has_more
             && !self.stories.is_empty()
             && self.stories.len() < self.visible_story_capacity()
     }
 
     fn load_more(&mut self) {
-        if self.loading_more || !self.has_more {
+        if self.load.loading_more || !self.load.has_more {
             return;
         }
 
-        self.loading_more = true;
-        let next_page = self.current_page + 1;
+        self.load.loading_more = true;
+        let next_page = self.load.current_page + 1;
         self.spawn_stories_fetch(next_page, false, true);
     }
 
@@ -650,7 +687,7 @@ impl App {
         } else {
             format!("Load {} stories", feed.label())
         };
-        let task_id = self.start_task(task_desc);
+        let task_id = self.debug.start_task(task_desc);
 
         tokio::spawn(async move {
             if clear_cache {
@@ -692,7 +729,7 @@ impl App {
         } else {
             format!("Load comments for {}", story_id)
         };
-        let task_id = self.start_task(task_desc);
+        let task_id = self.debug.start_task(task_desc);
 
         tokio::spawn(async move {
             if clear_cache {
@@ -896,7 +933,7 @@ mod tests {
         app.update(Message::UpdateViewportHeight(50)); // capacity = 23
 
         assert_eq!(app.viewport_height, Some(50));
-        assert!(app.loading_more); // should have triggered load_more
+        assert!(app.load.loading_more); // should have triggered load_more
     }
 
     #[test]
@@ -911,6 +948,6 @@ mod tests {
         app.update(Message::UpdateViewportHeight(24)); // shrink
 
         assert_eq!(app.viewport_height, Some(24));
-        assert!(!app.loading_more); // should NOT trigger load
+        assert!(!app.load.loading_more); // should NOT trigger load
     }
 }

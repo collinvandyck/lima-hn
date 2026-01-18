@@ -53,9 +53,9 @@ fn render_feed_tabs(frame: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    if app.should_show_spinner() {
+    if app.load.should_show_spinner() {
         spans.push(Span::styled(
-            spinner_frame(app.loading_start),
+            spinner_frame(app.load.loading_start),
             Style::default().fg(theme.spinner),
         ));
     }
@@ -67,7 +67,7 @@ fn render_feed_tabs(frame: &mut Frame, app: &App, area: Rect) {
 fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
     let theme = &app.theme;
 
-    if let Some(err) = &app.error {
+    if let Some(err) = &app.load.error {
         let error = Paragraph::new(err.as_str())
             .style(Style::default().fg(theme.error))
             .block(
