@@ -13,7 +13,7 @@ use crate::api::Comment;
 use crate::app::{App, View};
 use crate::theme::ResolvedTheme;
 use crate::time::{Clock, format_relative};
-use crate::views::common::{render_error, render_loading};
+use crate::views::common::render_error;
 use crate::views::html::strip_html;
 use crate::views::status_bar::StatusBar;
 use crate::views::tree::{
@@ -34,27 +34,35 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     .split(area);
 
     let theme = &app.theme;
-    render_header(frame, &story_title, chunks[0], theme);
+    render_header(frame, app, &story_title, chunks[0], theme);
     render_comment_list(frame, app, chunks[1]);
     render_status_bar(frame, app, chunks[2]);
 }
 
-fn render_header(frame: &mut Frame, title: &str, area: Rect, theme: &ResolvedTheme) {
-    let header = Paragraph::new(title).style(
+fn render_header(frame: &mut Frame, app: &App, title: &str, area: Rect, theme: &ResolvedTheme) {
+    use super::spinner::spinner_frame;
+
+    let mut spans = vec![Span::styled(
+        title,
         Style::default()
             .fg(theme.story_title)
             .add_modifier(Modifier::BOLD),
-    );
+    )];
+
+    if app.load.should_show_spinner() {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            spinner_frame(app.load.loading_start),
+            Style::default().fg(theme.spinner),
+        ));
+    }
+
+    let header = Paragraph::new(Line::from(spans));
     frame.render_widget(header, area);
 }
 
 fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
     let theme = &app.theme;
-
-    if app.load.loading {
-        render_loading(frame, "Loading comments...", "Comments", theme, area);
-        return;
-    }
 
     if let Some(err) = &app.load.error {
         render_error(frame, err, theme, area);
