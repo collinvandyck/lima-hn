@@ -1,4 +1,4 @@
-# lima-hn
+# hn
 
 a terminal ui for hacker news.
 
@@ -50,7 +50,7 @@ in comments view, `l`/`h` expand/collapse. `L`/`H` do subtrees. `+`/`-` do entir
 
 comes with the classics: monokai, dracula, nord, gruvbox, solarized, catppuccin, tokyo-night. both dark and light variants where applicable.
 
-custom themes go in `~/.config/lima-hn/themes/` as toml files. run `hn theme show monokai` to see the format.
+custom themes go in `~/.config/hn/themes/` as toml files. run `hn theme show monokai` to see the format.
 
 ## architecture
 
