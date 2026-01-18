@@ -31,6 +31,8 @@ just ci           # Full CI check (fmt, lint, test)
 just themes       # List available themes
 ```
 
+You must use `just ci` to validate your work when done.
+
 ## Workflow
 
 After making changes:

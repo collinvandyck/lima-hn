@@ -1,9 +1,10 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct HnItem {
     pub id: u64,
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     pub item_type: Option<String>,
     pub by: Option<String>,
     pub time: Option<u64>,
@@ -14,6 +15,7 @@ pub struct HnItem {
     pub descendants: Option<u32>,
     #[serde(default)]
     pub kids: Vec<u64>,
+    #[allow(dead_code)]
     pub parent: Option<u64>,
     pub deleted: Option<bool>,
     pub dead: Option<bool>,

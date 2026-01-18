@@ -347,26 +347,6 @@ impl Default for HnClient {
     }
 }
 
-impl Clone for HnItem {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            item_type: self.item_type.clone(),
-            by: self.by.clone(),
-            time: self.time,
-            text: self.text.clone(),
-            url: self.url.clone(),
-            score: self.score,
-            title: self.title.clone(),
-            descendants: self.descendants,
-            kids: self.kids.clone(),
-            parent: self.parent,
-            deleted: self.deleted,
-            dead: self.dead,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
