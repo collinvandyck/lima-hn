@@ -127,10 +127,43 @@ fn comment_to_list_item(
     clock: &Arc<dyn Clock>,
 ) -> ListItem<'static> {
     let color = theme.depth_color(comment.depth);
-    let depth = comment.depth;
     let has_children = !comment.kids.is_empty();
+    let show_children_connector = has_children && is_expanded;
 
-    let depth_marker = build_meta_tree_prefix(depth, has_more_at_depth, color);
+    let meta_line = build_meta_line(comment, is_expanded, has_more_at_depth, theme, clock, color);
+    let text_lines = build_text_lines(
+        &comment.text,
+        comment.depth,
+        has_more_at_depth,
+        show_children_connector,
+        max_width,
+        theme,
+        color,
+    );
+    let separator = build_empty_line_prefix(
+        comment.depth,
+        has_more_at_depth,
+        show_children_connector,
+        color,
+    );
+
+    let mut lines = vec![meta_line];
+    lines.extend(text_lines);
+    lines.push(Line::from(vec![separator]));
+
+    ListItem::new(lines)
+}
+
+fn build_meta_line(
+    comment: &Comment,
+    is_expanded: bool,
+    has_more_at_depth: &[bool],
+    theme: &ResolvedTheme,
+    clock: &Arc<dyn Clock>,
+    color: ratatui::style::Color,
+) -> Line<'static> {
+    let has_children = !comment.kids.is_empty();
+    let tree_prefix = build_meta_tree_prefix(comment.depth, has_more_at_depth, color);
 
     let expand_indicator = if has_children {
         if is_expanded {
@@ -142,20 +175,8 @@ fn comment_to_list_item(
         Span::styled("[ ] ", Style::default().fg(theme.foreground_dim))
     };
 
-    let child_info = if has_children {
-        vec![
-            Span::styled(" · ", Style::default().fg(theme.foreground_dim)),
-            Span::styled(
-                format!("{} replies", comment.kids.len()),
-                Style::default().fg(theme.foreground_dim),
-            ),
-        ]
-    } else {
-        vec![]
-    };
-
-    let mut meta_spans = vec![
-        depth_marker,
+    let mut spans = vec![
+        tree_prefix,
         expand_indicator,
         Span::styled(
             comment.by.clone(),
@@ -167,31 +188,44 @@ fn comment_to_list_item(
             Style::default().fg(theme.foreground_dim),
         ),
     ];
-    meta_spans.extend(child_info);
-    let meta_line = Line::from(meta_spans);
 
-    let text = strip_html(&comment.text);
-    // Only show children connector if children are visible (expanded)
-    let show_children_connector = has_children && is_expanded;
-    let text_prefix = build_text_prefix(depth, has_more_at_depth, show_children_connector, color);
-    let prefix_width = text_prefix.content.len();
-    let available_width = max_width.saturating_sub(prefix_width).max(20);
-    let wrapped_lines = wrap_text(&text, available_width);
-
-    let mut lines = vec![meta_line];
-
-    for wrapped_line in wrapped_lines {
-        lines.push(Line::from(vec![
-            text_prefix.clone(),
-            Span::styled(wrapped_line, Style::default().fg(theme.comment_text)),
-        ]));
+    if has_children {
+        spans.push(Span::styled(
+            " · ",
+            Style::default().fg(theme.foreground_dim),
+        ));
+        spans.push(Span::styled(
+            format!("{} replies", comment.kids.len()),
+            Style::default().fg(theme.foreground_dim),
+        ));
     }
 
-    let empty_prefix =
-        build_empty_line_prefix(depth, has_more_at_depth, show_children_connector, color);
-    lines.push(Line::from(vec![empty_prefix]));
+    Line::from(spans)
+}
 
-    ListItem::new(lines)
+fn build_text_lines(
+    text: &str,
+    depth: usize,
+    has_more_at_depth: &[bool],
+    show_children_connector: bool,
+    max_width: usize,
+    theme: &ResolvedTheme,
+    color: ratatui::style::Color,
+) -> Vec<Line<'static>> {
+    let text = strip_html(text);
+    let prefix = build_text_prefix(depth, has_more_at_depth, show_children_connector, color);
+    let prefix_width = prefix.content.len();
+    let available_width = max_width.saturating_sub(prefix_width).max(20);
+
+    wrap_text(&text, available_width)
+        .into_iter()
+        .map(|line| {
+            Line::from(vec![
+                prefix.clone(),
+                Span::styled(line, Style::default().fg(theme.comment_text)),
+            ])
+        })
+        .collect()
 }
 
 fn wrap_text(text: &str, width: usize) -> Vec<String> {
