@@ -141,15 +141,19 @@ pub struct ResolvedTheme {
     pub spinner: Color,
 }
 
+fn dim_amount() -> f32 {
+    0.7
+}
+
 /// Dims a color by reducing its brightness.
 fn dim_color(color: Color) -> Color {
     match color {
         Color::Rgb(r, g, b) => {
             // Reduce brightness by ~40%
             Color::Rgb(
-                (r as f32 * 0.6) as u8,
-                (g as f32 * 0.6) as u8,
-                (b as f32 * 0.6) as u8,
+                (r as f32 * dim_amount()) as u8,
+                (g as f32 * dim_amount()) as u8,
+                (b as f32 * dim_amount()) as u8,
             )
         }
         // For indexed/named colors, we can't easily compute a dimmed version.
