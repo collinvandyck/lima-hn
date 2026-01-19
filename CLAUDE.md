@@ -144,6 +144,8 @@ running text. Avoid emojis entirely. Let the content speak for itself.
 **Markdown tables:** Format tables for terminal readability. Align columns by padding cells to consistent widths.
 Headers and separators should match the column width. Example:
 
+**Derives:** Prefer using derive (Clone, Copy, Debug, et al) over manual implementation if it's equivalent.
+
 ```markdown
 | #  | Feature    | Rationale                                 |
 |----|------------|-------------------------------------------|
