@@ -7,12 +7,13 @@ descriptions are in the sections below.
 
 ## Completed
 
-| Feature        | Notes                                                                        |
-|----------------|------------------------------------------------------------------------------|
-| Pagination     | Infinite scroll with automatic loading as you navigate. Background fetching. |
-| Debug Mode     | Toggle with backtick (`). Shows running tasks and event log.                 |
-| SQLite Storage | Local cache in `~/.local/share/hn/hn.db`. Write-through caching, async ops.  |
-| Algolia API    | Single-request comment fetching via Algolia. Firebase fallback for resiliency.|
+| Feature           | Notes                                                                         |
+|-------------------|-------------------------------------------------------------------------------|
+| Pagination        | Infinite scroll with automatic loading as you navigate. Background fetching.  |
+| Debug Mode        | Toggle with backtick (`). Shows running tasks and event log.                  |
+| SQLite Storage    | Local cache in `~/.local/share/hn/hn.db`. Write-through caching, async ops.   |
+| Algolia API       | Single-request comment fetching via Algolia. Firebase fallback for resiliency.|
+| Copy to Clipboard | `y` copies context-sensitive URL (story or comment link). Flash feedback.     |
 
 ---
 
@@ -22,34 +23,33 @@ descriptions are in the sections below.
 |----|--------------------------|-------------------------------------------------------------------------------|
 | 1  | Read/Unread Tracking     | Transforms app from viewer to daily-driver. SQLite storage ready.             |
 | 2  | Local Bookmarks          | Completes core reading workflow. SQLite storage ready.                        |
-| 3  | Copy to Clipboard        | Quick win, immediate utility. Users constantly want to share links.           |
-| 4  | Comment Enhancements     | Highlight OP, jump between top-level—small effort, better reading experience. |
-| 5  | View History             | Natural extension of read tracking. SQLite storage ready.                     |
-| 6  | Search                   | High value for finding old discussions. Algolia API already integrated.       |
-| 7  | User Profiles            | View karma, submissions, comments. Useful context when reading threads.       |
-| 8  | Story Filtering          | Hide low-score stories, block domains. Personalization without account.       |
-| 9  | Mouse Support            | Events already captured. Click-to-select, scroll wheel. Quick win.            |
-| 10 | Status Bar Improvements  | Polish: position indicator, time since refresh, unread count.                 |
-| 11 | Background Refresh       | Keep feeds fresh automatically. Nice for leaving app open.                    |
-| 12 | Preloading               | Prefetch next page, comments for nearby stories. Snappier feel.               |
-| 13 | Code Block Formatting    | Better rendering for technical discussions. Moderate effort.                  |
-| 14 | Customizable Keybindings | Power user feature. Config file for remapping keys.                           |
-| 15 | Export Thread            | Save discussions as markdown. Useful for reference.                           |
-| 16 | Split View               | Stories + comments side-by-side. Ambitious UI change.                         |
-| 17 | Link Preview             | Fetch page title/description. Opt-in for privacy. Nice-to-have.               |
-| 18 | Offline Mode             | SQLite in place makes this straightforward. Query local DB when offline.      |
-| 19 | Login Support            | Cookie-based auth. Enables upvoting/commenting. Security-sensitive.           |
-| 20 | Upvoting                 | Requires login. Visual indicator for upvoted items.                           |
-| 21 | Commenting & Replies     | Requires login. Compose in $EDITOR. Most complex account feature.             |
-| 22 | Share Integration        | Platform-specific (macOS share sheet, etc.). Limited audience.                |
-| 23 | Screen Reader Support    | Accessibility: focus announcements, terminal reader compat.                   |
-| 24 | High Contrast Mode       | Accessibility: dedicated theme, disable colors option.                        |
-| 25 | Plugin System            | Lua/WASM extensibility. Very ambitious, likely overkill.                      |
-| 26 | Focus Mode               | Hide scores/counts. Niche but interesting for mindful reading.                |
-| 27 | Multi-Account            | Switch HN accounts. Very niche use case.                                      |
-| 28 | Comment Threading Viz    | ASCII tree view like `git log --graph`. Fun but niche.                        |
-| 29 | HN "Wrapped"             | Reading stats. Fun year-end feature, requires history first.                  |
-| 30 | Gemini/Gopher Support    | Text-protocol fetching. Very niche.                                           |
+| 3  | Comment Enhancements     | Highlight OP, jump between top-level—small effort, better reading experience. |
+| 4  | View History             | Natural extension of read tracking. SQLite storage ready.                     |
+| 5  | Search                   | High value for finding old discussions. Algolia API already integrated.       |
+| 6  | User Profiles            | View karma, submissions, comments. Useful context when reading threads.       |
+| 7  | Story Filtering          | Hide low-score stories, block domains. Personalization without account.       |
+| 8  | Mouse Support            | Events already captured. Click-to-select, scroll wheel. Quick win.            |
+| 9  | Status Bar Improvements  | Polish: position indicator, time since refresh, unread count.                 |
+| 10 | Background Refresh       | Keep feeds fresh automatically. Nice for leaving app open.                    |
+| 11 | Preloading               | Prefetch next page, comments for nearby stories. Snappier feel.               |
+| 12 | Code Block Formatting    | Better rendering for technical discussions. Moderate effort.                  |
+| 13 | Customizable Keybindings | Power user feature. Config file for remapping keys.                           |
+| 14 | Export Thread            | Save discussions as markdown. Useful for reference.                           |
+| 15 | Split View               | Stories + comments side-by-side. Ambitious UI change.                         |
+| 16 | Link Preview             | Fetch page title/description. Opt-in for privacy. Nice-to-have.               |
+| 17 | Offline Mode             | SQLite in place makes this straightforward. Query local DB when offline.      |
+| 18 | Login Support            | Cookie-based auth. Enables upvoting/commenting. Security-sensitive.           |
+| 19 | Upvoting                 | Requires login. Visual indicator for upvoted items.                           |
+| 20 | Commenting & Replies     | Requires login. Compose in $EDITOR. Most complex account feature.             |
+| 21 | Share Integration        | Platform-specific (macOS share sheet, etc.). Limited audience.                |
+| 22 | Screen Reader Support    | Accessibility: focus announcements, terminal reader compat.                   |
+| 23 | High Contrast Mode       | Accessibility: dedicated theme, disable colors option.                        |
+| 24 | Plugin System            | Lua/WASM extensibility. Very ambitious, likely overkill.                      |
+| 25 | Focus Mode               | Hide scores/counts. Niche but interesting for mindful reading.                |
+| 26 | Multi-Account            | Switch HN accounts. Very niche use case.                                      |
+| 27 | Comment Threading Viz    | ASCII tree view like `git log --graph`. Fun but niche.                        |
+| 28 | HN "Wrapped"             | Reading stats. Fun year-end feature, requires history first.                  |
+| 29 | Gemini/Gopher Support    | Text-protocol fetching. Very niche.                                           |
 
 ---
 
@@ -261,14 +261,13 @@ Save a comment thread for reference:
 - Include metadata (title, URL, author, time)
 - Optionally include only expanded comments
 
-### Copy to Clipboard
+### Copy to Clipboard ✓
 
-Quick copy operations:
+Implemented with context-sensitive `y` key:
 
-- Copy story URL
-- Copy HN discussion URL
-- Copy selected comment text
-- Copy story as markdown link
+- Stories view: `y` copies article URL
+- Comments view: `y` copies comment permalink, `Y` copies story URL
+- Flash message confirms copy (fades after 2 seconds)
 
 ### Share Integration
 
