@@ -6,7 +6,7 @@ pub use builtin::{all_themes, by_name, default_for_variant};
 pub use detect::detect_terminal_theme;
 pub use loader::load_theme_file;
 
-use ratatui::style::Color;
+use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -147,6 +147,44 @@ impl ResolvedTheme {
             return self.primary;
         }
         self.comment_depth_colors[depth % self.comment_depth_colors.len()]
+    }
+
+    pub fn border_style(&self) -> Style {
+        Style::default().fg(self.border)
+    }
+
+    pub fn selection_style(&self) -> Style {
+        Style::default()
+            .bg(self.selection_bg)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    pub fn dim_style(&self) -> Style {
+        Style::default().fg(self.foreground_dim)
+    }
+
+    pub fn active_tab_style(&self) -> Style {
+        Style::default()
+            .fg(self.primary)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    pub fn error_style(&self) -> Style {
+        Style::default().fg(self.error)
+    }
+
+    pub fn spinner_style(&self) -> Style {
+        Style::default().fg(self.spinner)
+    }
+
+    pub fn status_bar_style(&self) -> Style {
+        Style::default()
+            .bg(self.status_bar_bg)
+            .fg(self.status_bar_fg)
+    }
+
+    pub fn comment_text_style(&self) -> Style {
+        Style::default().fg(self.comment_text)
     }
 }
 

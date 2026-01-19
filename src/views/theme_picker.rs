@@ -1,7 +1,6 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
-    style::{Modifier, Style},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
@@ -40,14 +39,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.border))
+                .border_style(theme.border_style())
                 .title("Theme"),
         )
-        .highlight_style(
-            Style::default()
-                .bg(theme.selection_bg)
-                .add_modifier(Modifier::BOLD),
-        )
+        .highlight_style(theme.selection_style())
         .highlight_symbol("▶ ");
 
     let mut state = ListState::default();
@@ -55,8 +50,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_stateful_widget(list, chunks[0], &mut state);
 
     // Help line
-    let help = Paragraph::new("j/k:select  Enter:confirm  Esc:cancel")
-        .style(Style::default().fg(theme.foreground_dim));
+    let help = Paragraph::new("j/k:select  Enter:confirm  Esc:cancel").style(theme.dim_style());
     frame.render_widget(help, chunks[1]);
 }
 

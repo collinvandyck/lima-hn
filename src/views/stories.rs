@@ -37,17 +37,12 @@ fn render_feed_tabs(frame: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .flat_map(|(i, feed)| {
             let style = if *feed == app.feed {
-                Style::default()
-                    .fg(theme.primary)
-                    .add_modifier(Modifier::BOLD)
+                theme.active_tab_style()
             } else {
-                Style::default().fg(theme.foreground_dim)
+                theme.dim_style()
             };
             vec![
-                Span::styled(
-                    format!("[{}]", i + 1),
-                    Style::default().fg(theme.foreground_dim),
-                ),
+                Span::styled(format!("[{}]", i + 1), theme.dim_style()),
                 Span::styled(feed.label(), style),
                 Span::raw("  "),
             ]
@@ -57,7 +52,7 @@ fn render_feed_tabs(frame: &mut Frame, app: &App, area: Rect) {
     if app.load.should_show_spinner() {
         spans.push(Span::styled(
             spinner_frame(app.load.loading_start),
-            Style::default().fg(theme.spinner),
+            theme.spinner_style(),
         ));
     }
 
@@ -84,14 +79,10 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.border))
+                .border_style(theme.border_style())
                 .title(format!("{} Stories", app.feed.label())),
         )
-        .highlight_style(
-            Style::default()
-                .bg(theme.selection_bg)
-                .add_modifier(Modifier::BOLD),
-        )
+        .highlight_style(theme.selection_style())
         .highlight_symbol("▶ ");
 
     let mut state = ListState::default();

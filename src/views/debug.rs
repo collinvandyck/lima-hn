@@ -14,14 +14,14 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .title(" Debug ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.foreground_dim));
+        .border_style(theme.dim_style());
 
     let mut lines = Vec::new();
 
     // Running tasks
     let task_count = app.debug.running_tasks.len();
     lines.push(Line::from(vec![
-        Span::styled("Tasks: ", Style::default().fg(theme.foreground_dim)),
+        Span::styled("Tasks: ", theme.dim_style()),
         Span::styled(
             task_count.to_string(),
             Style::default().fg(if task_count > 0 {
@@ -35,11 +35,8 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     for task in &app.debug.running_tasks {
         let elapsed = task.started_at.elapsed();
         lines.push(Line::from(vec![
-            Span::styled("  ", Style::default()),
-            Span::styled(
-                format!("[{}] ", task.id),
-                Style::default().fg(theme.foreground_dim),
-            ),
+            Span::raw("  "),
+            Span::styled(format!("[{}] ", task.id), theme.dim_style()),
             Span::styled(&task.description, Style::default().fg(theme.foreground)),
             Span::styled(
                 format!(" ({:.1?})", elapsed),
@@ -60,7 +57,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     for entry in app.debug.log.iter().rev().take(log_lines) {
         lines.push(Line::from(vec![Span::styled(
             format!("  {}", entry.message),
-            Style::default().fg(theme.foreground_dim),
+            theme.dim_style(),
         )]));
     }
 

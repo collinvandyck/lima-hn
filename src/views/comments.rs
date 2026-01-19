@@ -55,7 +55,7 @@ fn render_header(frame: &mut Frame, app: &App, title: &str, area: Rect, theme: &
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             spinner_frame(app.load.loading_start),
-            Style::default().fg(theme.spinner),
+            theme.spinner_style(),
         ));
     }
 
@@ -73,11 +73,11 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
 
     if app.comment_tree.is_empty() {
         let empty = Paragraph::new("No comments yet")
-            .style(Style::default().fg(theme.foreground_dim))
+            .style(theme.dim_style())
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(theme.border))
+                    .border_style(theme.border_style())
                     .title("Comments"),
             );
         frame.render_widget(empty, area);
@@ -111,7 +111,7 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.border))
+                .border_style(theme.border_style())
                 .title(format!("Comments ({})", app.comment_tree.len())),
         )
         .highlight_style(Style::default().bg(theme.selection_bg))
@@ -186,21 +186,18 @@ fn build_meta_line(
             comment.by.clone(),
             Style::default().fg(color).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" · ", Style::default().fg(theme.foreground_dim)),
+        Span::styled(" · ", theme.dim_style()),
         Span::styled(
             format_relative(comment.time, clock.now()),
-            Style::default().fg(theme.foreground_dim),
+            theme.dim_style(),
         ),
     ];
 
     if has_children {
-        spans.push(Span::styled(
-            " · ",
-            Style::default().fg(theme.foreground_dim),
-        ));
+        spans.push(Span::styled(" · ", theme.dim_style()));
         spans.push(Span::styled(
             format!("{} replies", comment.kids.len()),
-            Style::default().fg(theme.foreground_dim),
+            theme.dim_style(),
         ));
     }
 
@@ -226,7 +223,7 @@ fn build_text_lines(
         .map(|line| {
             Line::from(vec![
                 prefix.clone(),
-                Span::styled(line, Style::default().fg(theme.comment_text)),
+                Span::styled(line, theme.comment_text_style()),
             ])
         })
         .collect()

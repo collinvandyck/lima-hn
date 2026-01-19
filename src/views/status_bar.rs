@@ -60,19 +60,14 @@ impl<'a> StatusBar<'a> {
 
     pub fn render(self, frame: &mut Frame, area: Rect) {
         let mut spans = vec![
-            Span::styled(
-                format!(" {} ", self.label),
-                Style::default()
-                    .bg(self.theme.status_bar_bg)
-                    .fg(self.theme.status_bar_fg),
-            ),
+            Span::styled(format!(" {} ", self.label), self.theme.status_bar_style()),
             Span::raw(" "),
         ];
 
         if let Some(loading) = self.loading_text {
             spans.push(Span::styled(
                 loading.to_string(),
-                Style::default().fg(self.theme.spinner),
+                self.theme.spinner_style(),
             ));
             spans.push(Span::raw(" | "));
         }
@@ -80,7 +75,7 @@ impl<'a> StatusBar<'a> {
         if let Some((current, total)) = self.position {
             spans.push(Span::styled(
                 format!("{}/{}", current, total),
-                Style::default().fg(self.theme.foreground_dim),
+                self.theme.dim_style(),
             ));
             spans.push(Span::raw(" | "));
         }
@@ -93,7 +88,7 @@ impl<'a> StatusBar<'a> {
         } else {
             spans.push(Span::styled(
                 self.help_text.to_string(),
-                Style::default().fg(self.theme.foreground_dim),
+                self.theme.dim_style(),
             ));
         }
 
