@@ -77,7 +77,10 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
         .stories
         .iter()
         .enumerate()
-        .map(|(i, story)| story_to_list_item(story, i + 1, theme, &app.clock))
+        .map(|(i, story)| {
+            let is_read = app.is_story_read(story.id);
+            story_to_list_item(story, i + 1, theme, &app.clock, is_read)
+        })
         .collect();
 
     let list = List::new(items)
@@ -104,13 +107,21 @@ fn story_to_list_item(
     rank: usize,
     theme: &ResolvedTheme,
     clock: &Arc<dyn Clock>,
+    is_read: bool,
 ) -> ListItem<'static> {
+    let title_style = if is_read {
+        Style::default()
+            .fg(theme.story_title)
+            .add_modifier(Modifier::DIM)
+    } else {
+        Style::default().fg(theme.story_title)
+    };
     let title_line = Line::from(vec![
         Span::styled(
             format!("{:>3}. ", rank),
             Style::default().fg(theme.foreground_dim),
         ),
-        Span::styled(story.title.clone(), Style::default().fg(theme.story_title)),
+        Span::styled(story.title.clone(), title_style),
         Span::styled(
             format!(" ({})", story.domain()),
             Style::default().fg(theme.story_domain),
@@ -225,5 +236,23 @@ mod tests {
         });
 
         assert!(output.contains("j/k:nav"));
+    }
+
+    #[test]
+    fn test_stories_view_read_stories() {
+        let stories = sample_stories();
+        // Mark stories 1 and 3 as read
+        let read_ids = vec![stories[0].id, stories[2].id];
+        let app = TestAppBuilder::new()
+            .with_stories(stories)
+            .read_story_ids(read_ids)
+            .selected(1) // Select an unread story
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
     }
 }

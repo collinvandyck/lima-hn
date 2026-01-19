@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -27,6 +27,9 @@ pub enum AsyncResult {
         story_id: u64,
         task_id: u64,
         result: Result<Vec<Comment>, ApiError>,
+    },
+    ReadStoryIds {
+        ids: HashSet<u64>,
     },
 }
 
@@ -221,6 +224,8 @@ pub struct App {
     pub config_dir: Option<PathBuf>,
     // Flash message for clipboard feedback
     pub flash_message: Option<(String, Instant)>,
+    // Read story tracking
+    pub read_story_ids: HashSet<u64>,
 }
 
 impl App {
@@ -252,6 +257,7 @@ impl App {
             theme_picker: None,
             config_dir,
             flash_message: None,
+            read_story_ids: HashSet::new(),
         }
     }
 
@@ -364,6 +370,9 @@ impl App {
                         }
                     }
                 }
+            }
+            AsyncResult::ReadStoryIds { ids } => {
+                self.read_story_ids = ids;
             }
         }
     }
@@ -634,11 +643,13 @@ impl App {
         self.selected_index = self.selected_index.saturating_sub(10);
     }
 
-    fn open_url(&self) {
+    fn open_url(&mut self) {
         match &self.view {
             View::Stories => {
                 if let Some(story) = self.stories.get(self.selected_index) {
+                    let id = story.id;
                     let _ = open::that(story.content_url());
+                    self.mark_story_read(id);
                 }
             }
             View::Comments { .. } => {
@@ -649,13 +660,15 @@ impl App {
         }
     }
 
-    fn open_story_url(&self) {
+    fn open_story_url(&mut self) {
         let story = match &self.view {
             View::Stories => self.stories.get(self.selected_index),
             View::Comments { story_index, .. } => self.stories.get(*story_index),
         };
         if let Some(story) = story {
+            let id = story.id;
             let _ = open::that(story.content_url());
+            self.mark_story_read(id);
         }
     }
 
@@ -701,13 +714,23 @@ impl App {
         })
     }
 
+    pub fn is_story_read(&self, id: u64) -> bool {
+        self.read_story_ids.contains(&id)
+    }
+
+    fn mark_story_read(&mut self, id: u64) {
+        if self.read_story_ids.insert(id) {
+            self.spawn_mark_story_read(id);
+        }
+    }
+
     fn open_comments(&mut self) {
         if let View::Stories = self.view
             && let Some(story) = self.stories.get(self.selected_index).cloned()
         {
             let story_index = self.selected_index;
             let story_scroll = self.scroll_offset;
-
+            self.mark_story_read(story.id);
             self.view = View::Comments {
                 story_id: story.id,
                 story_title: story.title.clone(),
@@ -883,6 +906,27 @@ impl App {
                 })
                 .await;
         });
+    }
+
+    fn spawn_mark_story_read(&self, id: u64) {
+        if let Some(storage) = self.client.storage() {
+            let storage = storage.clone();
+            tokio::spawn(async move {
+                let _ = storage.mark_story_read(id).await;
+            });
+        }
+    }
+
+    pub fn spawn_load_read_story_ids(&self) {
+        if let Some(storage) = self.client.storage() {
+            let storage = storage.clone();
+            let tx = self.result_tx.clone();
+            tokio::spawn(async move {
+                if let Ok(ids) = storage.get_read_story_ids().await {
+                    let _ = tx.send(AsyncResult::ReadStoryIds { ids }).await;
+                }
+            });
+        }
     }
 }
 

@@ -45,6 +45,10 @@ impl HnClient {
         }
     }
 
+    pub fn storage(&self) -> Option<&Storage> {
+        self.storage.as_ref()
+    }
+
     async fn get_json<T: serde::de::DeserializeOwned>(&self, url: &str) -> Result<T, ApiError> {
         let response = self.http.get(url).send().await?;
         let status = response.status();

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rusqlite::{Connection, params, params_from_iter};
 
 use crate::api::Feed;
@@ -229,4 +231,22 @@ pub fn get_feed(conn: &Connection, feed: Feed) -> Result<Option<CachedFeed>, Sto
         ids,
         fetched_at,
     }))
+}
+
+pub fn mark_story_read(conn: &Connection, id: u64) -> Result<(), StorageError> {
+    conn.execute(
+        "UPDATE stories SET read_at = ?1 WHERE id = ?2 AND read_at IS NULL",
+        params![now_unix() as i64, id as i64],
+    )?;
+    Ok(())
+}
+
+pub fn get_read_story_ids(conn: &Connection) -> Result<HashSet<u64>, StorageError> {
+    let mut stmt = conn.prepare("SELECT id FROM stories WHERE read_at IS NOT NULL")?;
+    let rows = stmt.query_map([], |row| Ok(row.get::<_, i64>(0)? as u64))?;
+    let mut ids = HashSet::new();
+    for row in rows {
+        ids.insert(row?);
+    }
+    Ok(ids)
 }

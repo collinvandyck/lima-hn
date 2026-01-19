@@ -3,6 +3,7 @@ mod migrations;
 mod queries;
 mod types;
 
+use std::collections::HashSet;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -100,6 +101,13 @@ pub(crate) enum StorageCommand {
     GetFeed {
         feed: Feed,
         reply: oneshot::Sender<Result<Option<CachedFeed>, StorageError>>,
+    },
+    MarkStoryRead {
+        id: u64,
+        reply: oneshot::Sender<Result<(), StorageError>>,
+    },
+    GetReadStoryIds {
+        reply: oneshot::Sender<Result<HashSet<u64>, StorageError>>,
     },
 }
 
@@ -225,6 +233,22 @@ impl Storage {
     pub async fn get_fresh_feed(&self, feed: Feed) -> Result<Option<CachedFeed>, StorageError> {
         let cached = self.get_feed(feed).await?;
         Ok(cached.filter(|f| f.is_fresh(CACHE_TTL)))
+    }
+
+    pub async fn mark_story_read(&self, id: u64) -> Result<(), StorageError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(StorageCommand::MarkStoryRead { id, reply: tx })
+            .await?;
+        rx.await?
+    }
+
+    pub async fn get_read_story_ids(&self) -> Result<HashSet<u64>, StorageError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(StorageCommand::GetReadStoryIds { reply: tx })
+            .await?;
+        rx.await?
     }
 }
 
@@ -471,5 +495,92 @@ mod tests {
         let loaded = storage.get_comments(123).await.unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, 1001);
+    }
+
+    #[tokio::test]
+    async fn test_mark_story_read() {
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
+
+        // Save a story first
+        let story = StorableStory {
+            id: 123,
+            title: "Test Story".to_string(),
+            url: None,
+            score: 100,
+            by: "testuser".to_string(),
+            time: 1700000000,
+            descendants: 0,
+            kids: vec![],
+            fetched_at: now_unix(),
+        };
+        storage.save_story(&story).await.unwrap();
+
+        // Initially no read stories
+        let read_ids = storage.get_read_story_ids().await.unwrap();
+        assert!(read_ids.is_empty());
+
+        // Mark as read
+        storage.mark_story_read(123).await.unwrap();
+
+        // Now it should be in read set
+        let read_ids = storage.get_read_story_ids().await.unwrap();
+        assert!(read_ids.contains(&123));
+    }
+
+    #[tokio::test]
+    async fn test_mark_story_read_idempotent() {
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
+
+        let story = StorableStory {
+            id: 456,
+            title: "Test".to_string(),
+            url: None,
+            score: 1,
+            by: "u".to_string(),
+            time: 1700000000,
+            descendants: 0,
+            kids: vec![],
+            fetched_at: now_unix(),
+        };
+        storage.save_story(&story).await.unwrap();
+
+        // Mark twice - should not fail
+        storage.mark_story_read(456).await.unwrap();
+        storage.mark_story_read(456).await.unwrap();
+
+        let read_ids = storage.get_read_story_ids().await.unwrap();
+        assert_eq!(read_ids.len(), 1);
+        assert!(read_ids.contains(&456));
+    }
+
+    #[tokio::test]
+    async fn test_get_read_story_ids_multiple() {
+        let storage = Storage::open(StorageLocation::InMemory).unwrap();
+
+        // Save multiple stories
+        for id in [100, 101, 102] {
+            let story = StorableStory {
+                id,
+                title: format!("Story {}", id),
+                url: None,
+                score: 1,
+                by: "u".to_string(),
+                time: 1700000000,
+                descendants: 0,
+                kids: vec![],
+                fetched_at: now_unix(),
+            };
+            storage.save_story(&story).await.unwrap();
+        }
+
+        // Mark some as read
+        storage.mark_story_read(100).await.unwrap();
+        storage.mark_story_read(102).await.unwrap();
+
+        let read_ids = storage.get_read_story_ids().await.unwrap();
+        assert_eq!(read_ids.len(), 2);
+        assert!(read_ids.contains(&100));
+        assert!(!read_ids.contains(&101));
+        assert!(read_ids.contains(&102));
     }
 }
