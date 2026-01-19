@@ -143,13 +143,13 @@ pub fn stories_keymap() -> Keymap {
         .bind(KeyCode::Char('f'), Message::ToggleFavorite)
         .bind(KeyCode::Char('H'), Message::PrevFeed)
         .bind(KeyCode::Char('L'), Message::NextFeed)
-        .bind(KeyCode::Char('0'), Message::SwitchFeed(Feed::Favorites))
-        .bind(KeyCode::Char('1'), Message::SwitchFeed(Feed::Top))
-        .bind(KeyCode::Char('2'), Message::SwitchFeed(Feed::New))
-        .bind(KeyCode::Char('3'), Message::SwitchFeed(Feed::Best))
-        .bind(KeyCode::Char('4'), Message::SwitchFeed(Feed::Ask))
-        .bind(KeyCode::Char('5'), Message::SwitchFeed(Feed::Show))
-        .bind(KeyCode::Char('6'), Message::SwitchFeed(Feed::Jobs))
+        .bind(KeyCode::Char('1'), Message::SwitchFeed(Feed::Favorites))
+        .bind(KeyCode::Char('2'), Message::SwitchFeed(Feed::Top))
+        .bind(KeyCode::Char('3'), Message::SwitchFeed(Feed::New))
+        .bind(KeyCode::Char('4'), Message::SwitchFeed(Feed::Best))
+        .bind(KeyCode::Char('5'), Message::SwitchFeed(Feed::Ask))
+        .bind(KeyCode::Char('6'), Message::SwitchFeed(Feed::Show))
+        .bind(KeyCode::Char('7'), Message::SwitchFeed(Feed::Jobs))
 }
 
 /// Comments view keybindings.
@@ -306,15 +306,15 @@ mod tests {
     fn test_feed_switch_keys() {
         let app = test_app();
         assert!(matches!(
-            handle_key(make_key(KeyCode::Char('0')), &app),
+            handle_key(make_key(KeyCode::Char('1')), &app),
             Some(Message::SwitchFeed(Feed::Favorites))
         ));
         assert!(matches!(
-            handle_key(make_key(KeyCode::Char('1')), &app),
+            handle_key(make_key(KeyCode::Char('2')), &app),
             Some(Message::SwitchFeed(Feed::Top))
         ));
         assert!(matches!(
-            handle_key(make_key(KeyCode::Char('4')), &app),
+            handle_key(make_key(KeyCode::Char('5')), &app),
             Some(Message::SwitchFeed(Feed::Ask))
         ));
     }

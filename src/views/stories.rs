@@ -44,7 +44,7 @@ fn render_feed_tabs(frame: &mut Frame, app: &App, area: Rect) {
                 theme.dim_style()
             };
             vec![
-                Span::styled(format!("[{}]", i), theme.dim_style()),
+                Span::styled(format!("[{}]", i + 1), theme.dim_style()),
                 Span::styled(feed.label(), style),
                 Span::raw("  "),
             ]
@@ -80,7 +80,7 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .stories
         .iter()
-        .map(|story| story_to_list_item(story, theme, &app.clock))
+        .map(|story| story_to_list_item(story, theme, &app.clock, app.feed))
         .collect();
 
     let list = List::new(items)
@@ -101,8 +101,9 @@ fn story_to_list_item(
     story: &Story,
     theme: &ResolvedTheme,
     clock: &Arc<dyn Clock>,
+    feed: Feed,
 ) -> ListItem<'static> {
-    let theme = if story.is_read() {
+    let theme = if story.is_read() && feed != Feed::Favorites {
         theme.dimmed()
     } else {
         theme.clone()
