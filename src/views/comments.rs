@@ -642,4 +642,30 @@ mod tests {
 
         insta::assert_snapshot!(output);
     }
+
+    #[test]
+    fn test_comments_view_with_timestamp() {
+        use crate::test_utils::TEST_NOW;
+
+        // 3 minutes ago (fresh)
+        let fetched_at = (TEST_NOW - 180) as u64;
+
+        let app = TestAppBuilder::new()
+            .with_comments(sample_comments())
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Test Story with Timestamp".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .comments_fetched_at(fetched_at)
+            .selected(0)
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
 }

@@ -1,0 +1,28 @@
+---
+source: src/views/comments.rs
+expression: output
+---
+Test Story with Timestamp                                          loaded 3m ago
+
+┌Comments (5)──────────────────────────────────────────────────────────────────┐
+│▶ [+] commenter1 · 1d ago · 2 replies                                         │
+│      This is a great project! I love the vim keybindings.                    │
+│                                                                              │
+│  [ ] searcher · 1d ago                                                       │
+│      Nice work! Any plans for search functionality?                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+ Comments  1/5 | l/h:expand  L/H:subtree  +/-:thread  Esc:back  ?:help

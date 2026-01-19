@@ -22,7 +22,7 @@ pub fn render_error(frame: &mut Frame, error: &str, theme: &ResolvedTheme, area:
 }
 
 /// Render a line with an optional right-aligned timestamp showing when data was fetched.
-/// If fetched_at is Some, shows "Xm ago" (dimmed if <5m, normal if >=5m).
+/// If fetched_at is Some, shows "loaded Xm ago" (dimmed if <5m, normal if >=5m).
 pub fn render_with_timestamp(
     frame: &mut Frame,
     content_line: Line,
@@ -32,7 +32,7 @@ pub fn render_with_timestamp(
     area: Rect,
 ) {
     if let Some(ts) = fetched_at {
-        let age_text = format_relative(ts, now);
+        let age_text = format!("loaded {}", format_relative(ts, now));
         let now_ts = now.timestamp() as u64;
         let age_secs = now_ts.saturating_sub(ts);
         let is_stale = age_secs >= 300; // 5 minutes

@@ -254,4 +254,44 @@ mod tests {
 
         insta::assert_snapshot!(output);
     }
+
+    #[test]
+    fn test_stories_view_with_fresh_timestamp() {
+        use crate::test_utils::TEST_NOW;
+
+        // 2 minutes ago (fresh, < 5 minutes)
+        let fetched_at = (TEST_NOW - 120) as u64;
+
+        let app = TestAppBuilder::new()
+            .with_stories(sample_stories())
+            .selected(0)
+            .stories_fetched_at(fetched_at)
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_stories_view_with_stale_timestamp() {
+        use crate::test_utils::TEST_NOW;
+
+        // 10 minutes ago (stale, >= 5 minutes)
+        let fetched_at = (TEST_NOW - 600) as u64;
+
+        let app = TestAppBuilder::new()
+            .with_stories(sample_stories())
+            .selected(0)
+            .stories_fetched_at(fetched_at)
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
 }

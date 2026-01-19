@@ -763,6 +763,7 @@ impl App {
         match &self.view {
             View::Stories => {
                 self.generation += 1;
+                self.stories_fetched_at = None;
                 self.load.set_loading(true);
                 self.load.current_page = 0;
                 self.load.has_more = true;
@@ -770,6 +771,7 @@ impl App {
             }
             View::Comments { story_id, .. } => {
                 if let Some(story) = self.stories.iter().find(|s| s.id == *story_id).cloned() {
+                    self.comments_fetched_at = None;
                     self.load.set_loading(true);
                     self.spawn_comments_fetch(story, true);
                 }
@@ -1127,5 +1129,35 @@ mod tests {
 
         assert_eq!(app.viewport_height, Some(24));
         assert!(!app.load.loading_more); // should NOT trigger load
+    }
+
+    #[tokio::test]
+    async fn refresh_clears_stories_fetched_at() {
+        let mut app = TestAppBuilder::new()
+            .with_stories(sample_stories())
+            .stories_fetched_at(1700000000)
+            .build();
+
+        assert!(app.stories_fetched_at.is_some());
+        app.update(Message::Refresh);
+        assert!(app.stories_fetched_at.is_none());
+    }
+
+    #[tokio::test]
+    async fn refresh_clears_comments_fetched_at() {
+        let mut app = TestAppBuilder::new()
+            .with_stories(sample_stories())
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .comments_fetched_at(1700000000)
+            .build();
+
+        assert!(app.comments_fetched_at.is_some());
+        app.update(Message::Refresh);
+        assert!(app.comments_fetched_at.is_none());
     }
 }
