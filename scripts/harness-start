@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Start the agent harness and wait for socket to be ready
 set -e
 
 SOCKET="${1:-/tmp/hn-harness.sock}"
@@ -36,7 +35,6 @@ if [ ! -S "$SOCKET" ]; then
     exit 1
 fi
 
-# Wait for TUI to initialize (harness has internal 3s delay, add buffer)
 sleep 1
 
 echo "$SOCKET"

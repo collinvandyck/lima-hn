@@ -32,8 +32,6 @@ All scripts are in the `scripts/` directory. Run from the repo root.
 
 - Builds release binary if needed
 - Spawns TUI in a PTY (80x24)
-- Waits for socket to be ready
-- Waits for TUI to initialize (~4 seconds total)
 - Prints socket path on success
 - Creates `${SOCKET}.pid` for tracking
 
@@ -45,12 +43,13 @@ All scripts are in the `scripts/` directory. Run from the repo root.
 
 Available commands:
 
-| Command | JSON | Response |
-|---------|------|----------|
+| Command    | JSON               | Response                                                  |
+|------------|--------------------|-----------------------------------------------------------|
 | Get screen | `{"cmd":"screen"}` | `{"status":"screen","rows":24,"cols":80,"content":"..."}` |
-| Quit | `{"cmd":"quit"}` | `{"status":"ok"}` |
+| Quit       | `{"cmd":"quit"}`   | `{"status":"ok"}`                                         |
 
 **Planned (not yet implemented):**
+
 - `{"cmd":"keys","keys":"jjl"}` - send keystrokes
 - `{"cmd":"ctrl","char":"c"}` - send control character
 - `{"cmd":"wait","pattern":"comments","timeout_ms":3000}` - wait for text
@@ -95,6 +94,7 @@ echo "$SCREEN" | jq -r '.content'
 ### Interpreting Screen Output
 
 The `screen` command returns JSON with:
+
 - `rows`: terminal height (24)
 - `cols`: terminal width (80)
 - `content`: plain text screen contents (newline-separated lines)
@@ -112,6 +112,7 @@ The content is the rendered TUI without ANSI escape codes. Example:
 ```
 
 Key elements to look for:
+
 - **Feed tabs**: `[0]Favs  [1]Top  [2]New...` at top
 - **Selected story**: marked with `▶`
 - **Story metadata**: `▲ score | author | N comments | time`
@@ -121,8 +122,12 @@ Key elements to look for:
 ### Error Handling
 
 If a command fails, the response will be:
+
 ```json
-{"status":"error","message":"description of error"}
+{
+  "status": "error",
+  "message": "description of error"
+}
 ```
 
 If the harness process dies, commands will fail with socket errors. Run `harness-cleanup` and start fresh.
@@ -139,18 +144,24 @@ If the harness process dies, commands will fail with socket errors. Run `harness
 
 5. **Dark theme is forced** via `--dark` flag to skip terminal detection (which would hang in PTY).
 
-6. **Run commands in foreground without extended timeouts**. The scripts handle their own waiting internally (`harness-start` waits ~4s for initialization). Do not use `run_in_background` or set long timeouts—just run them normally and they'll complete quickly.
+6. **Run commands in foreground without extended timeouts**. The scripts handle their own waiting internally (
+   `harness-start` waits ~4s for initialization). Do not use `run_in_background` or set long timeouts—just run them
+   normally and they'll complete quickly.
 
 ## Troubleshooting
 
 ### "socket not found"
+
 The harness isn't running or hasn't started yet. Check if `harness-start` succeeded.
 
 ### Hanging commands
+
 The harness may have crashed. Run `harness-cleanup` and try again.
 
 ### Empty screen content
+
 Rare issue with PTY initialization. Stop, cleanup, and restart.
 
 ### "harness process died" on start
+
 Build may have failed. Check cargo output. Ensure you're in the repo root.
