@@ -140,6 +140,7 @@ pub fn stories_keymap() -> Keymap {
     navigation_keymap()
         .bind(KeyCode::Char('l'), Message::OpenComments)
         .bind(KeyCode::Enter, Message::OpenComments)
+        .bind(KeyCode::Char('O'), Message::OpenHnPage)
         .bind(KeyCode::Char('f'), Message::ToggleFavorite)
         .bind(KeyCode::Char('H'), Message::PrevFeed)
         .bind(KeyCode::Char('L'), Message::NextFeed)

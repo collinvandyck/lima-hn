@@ -5,7 +5,6 @@ expression: output
 
 
 
-
                             ┌Help──────────────────┐
                             │                      │
                             │ j/k  navigate        │
@@ -13,6 +12,7 @@ expression: output
                             │ H/L  switch feeds    │
                             │   l  open comments   │
                             │   o  open link       │
+                            │   O  open on hn      │
                             │   y  copy url        │
                             │   f  favorite        │
                             │   r  refresh         │

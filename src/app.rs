@@ -169,6 +169,7 @@ pub enum Message {
     PageUp,
     OpenUrl,
     OpenStoryUrl,
+    OpenHnPage,
     OpenComments,
     ExpandComment,
     CollapseComment,
@@ -397,6 +398,7 @@ impl App {
             Message::PageUp => self.page_up(),
             Message::OpenUrl => self.open_url(),
             Message::OpenStoryUrl => self.open_story_url(),
+            Message::OpenHnPage => self.open_hn_page(),
             Message::OpenComments => self.open_comments(),
             Message::ExpandComment => self.expand_comment(),
             Message::CollapseComment => self.collapse_comment(),
@@ -663,6 +665,16 @@ impl App {
         if let Some(story) = story {
             let id = story.id;
             let _ = open::that(story.content_url());
+            self.mark_story_read(id);
+        }
+    }
+
+    fn open_hn_page(&mut self) {
+        if let View::Stories = &self.view
+            && let Some(story) = self.stories.get(self.selected_index)
+        {
+            let id = story.id;
+            let _ = open::that(story.hn_url());
             self.mark_story_read(id);
         }
     }
