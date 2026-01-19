@@ -8,6 +8,10 @@ pretty ergonomic, so i put it into `--dangerously-skip-permissions` mode and spe
 a couple of evenings steering it around. liking it so far. it's fun adding features
 to something that you personally want.
 
+![stories view](images/stories.png)
+
+![comments view](images/comments.png)
+
 ```
 cargo install --path .
 ```
