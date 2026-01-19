@@ -3,17 +3,21 @@
 Ideas for future features. The priority list ranks by value, effort, and whether a feature enables others. Detailed
 descriptions are in the sections below.
 
+# notes from user
+
+- read/unread tracking for stories is done
+
 ---
 
 ## Completed
 
-| Feature           | Notes                                                                         |
-|-------------------|-------------------------------------------------------------------------------|
-| Pagination        | Infinite scroll with automatic loading as you navigate. Background fetching.  |
-| Debug Mode        | Toggle with backtick (`). Shows running tasks and event log.                  |
-| SQLite Storage    | Local cache in `~/.local/share/hn/hn.db`. Write-through caching, async ops.   |
-| Algolia API       | Single-request comment fetching via Algolia. Firebase fallback for resiliency.|
-| Copy to Clipboard | `y` copies context-sensitive URL (story or comment link). Flash feedback.     |
+| Feature           | Notes                                                                          |
+|-------------------|--------------------------------------------------------------------------------|
+| Pagination        | Infinite scroll with automatic loading as you navigate. Background fetching.   |
+| Debug Mode        | Toggle with backtick (`). Shows running tasks and event log.                   |
+| SQLite Storage    | Local cache in `~/.local/share/hn/hn.db`. Write-through caching, async ops.    |
+| Algolia API       | Single-request comment fetching via Algolia. Firebase fallback for resiliency. |
+| Copy to Clipboard | `y` copies context-sensitive URL (story or comment link). Flash feedback.      |
 
 ---
 
