@@ -50,6 +50,16 @@ After making changes:
 - `update()` processes messages, `render()` draws UI
 - Views are pure functions: `render(frame, app, area)`
 
+**DB as source of truth:** The SQLite database (via `Storage`) is the authoritative source for cached data and metadata
+like `fetched_at` timestamps. When loading stories or comments:
+
+- Timestamps should come from the DB, not be calculated when results are received
+- AsyncResult structs should carry `fetched_at` from storage so handlers use the stored value
+- Avoid caching derived values (like timestamps) separately in App state when they can be read from the DB
+- Fresh API fetches write `fetched_at` to DB; cached reads return the stored `fetched_at`
+
+This prevents bugs where cached data incorrectly shows "loaded 0m ago" because the timestamp was reset on every load.
+
 **Key modules:**
 
 - `api/` - HN API client with caching, types (Story, Comment, Feed)

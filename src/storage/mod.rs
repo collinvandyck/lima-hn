@@ -90,13 +90,11 @@ pub(crate) enum StorageCommand {
         story_id: u64,
         reply: oneshot::Sender<Result<Vec<StorableComment>, StorageError>>,
     },
-    #[allow(dead_code)] // Used by future features
     SaveFeed {
         feed: Feed,
         ids: Vec<u64>,
         reply: oneshot::Sender<Result<(), StorageError>>,
     },
-    #[allow(dead_code)] // Used by future features
     GetFeed {
         feed: Feed,
         reply: oneshot::Sender<Result<Option<CachedFeed>, StorageError>>,
@@ -187,23 +185,25 @@ impl Storage {
         rx.await?
     }
 
+    /// Returns fresh comments with their fetched_at timestamp.
+    /// Returns None if no comments exist or they're stale.
     pub async fn get_fresh_comments(
         &self,
         story_id: u64,
-    ) -> Result<Option<Vec<StorableComment>>, StorageError> {
+    ) -> Result<Option<(Vec<StorableComment>, u64)>, StorageError> {
         let comments = self.get_comments(story_id).await?;
         if comments.is_empty() {
             return Ok(None);
         }
         // Check if first comment is fresh (all were fetched together)
+        let fetched_at = comments[0].fetched_at;
         if comments[0].is_fresh(CACHE_TTL) {
-            Ok(Some(comments))
+            Ok(Some((comments, fetched_at)))
         } else {
             Ok(None)
         }
     }
 
-    #[allow(dead_code)] // Used by future features
     pub async fn save_feed(&self, feed: Feed, ids: &[u64]) -> Result<(), StorageError> {
         let (tx, rx) = oneshot::channel();
         self.cmd_tx
@@ -216,7 +216,6 @@ impl Storage {
         rx.await?
     }
 
-    #[allow(dead_code)] // Used by future features
     pub async fn get_feed(&self, feed: Feed) -> Result<Option<CachedFeed>, StorageError> {
         let (tx, rx) = oneshot::channel();
         self.cmd_tx
@@ -225,7 +224,6 @@ impl Storage {
         rx.await?
     }
 
-    #[allow(dead_code)] // Used by future features
     pub async fn get_fresh_feed(&self, feed: Feed) -> Result<Option<CachedFeed>, StorageError> {
         let cached = self.get_feed(feed).await?;
         Ok(cached.filter(|f| f.is_fresh(CACHE_TTL)))
