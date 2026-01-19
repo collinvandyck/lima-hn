@@ -12,6 +12,8 @@ to something that you personally want.
 
 ![comments view](images/comments.png)
 
+## install
+
 ```
 cargo install --path .
 ```
