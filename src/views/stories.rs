@@ -80,16 +80,14 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .stories
         .iter()
-        .enumerate()
-        .map(|(i, story)| story_to_list_item(story, i + 1, theme, &app.clock))
+        .map(|story| story_to_list_item(story, theme, &app.clock))
         .collect();
 
     let list = List::new(items)
         .block(
             Block::default()
-                .borders(Borders::ALL)
-                .border_style(theme.border_style())
-                .title(format!("{} Stories", app.feed.label())),
+                .borders(Borders::TOP | Borders::BOTTOM)
+                .border_style(theme.border_style()),
         )
         .highlight_style(theme.selection_style())
         .highlight_symbol("▶ ");
@@ -101,7 +99,6 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
 
 fn story_to_list_item(
     story: &Story,
-    rank: usize,
     theme: &ResolvedTheme,
     clock: &Arc<dyn Clock>,
 ) -> ListItem<'static> {
@@ -111,12 +108,10 @@ fn story_to_list_item(
         theme.clone()
     };
     let title_line = Line::from(vec![
-        Span::styled(format!("{:>3}. ", rank), theme.dim_style()),
         Span::styled(story.title.clone(), theme.story_title_style()),
         Span::styled(format!(" ({})", story.domain()), theme.story_domain_style()),
     ]);
     let meta_line = Line::from(vec![
-        Span::styled("     ", theme.dim_style()),
         Span::styled(format!("▲ {}", story.score), theme.story_score_style()),
         Span::styled(" | ", theme.dim_style()),
         Span::styled(story.by.clone(), theme.story_author_style()),

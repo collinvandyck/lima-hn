@@ -3,26 +3,26 @@ source: src/views/stories.rs
 expression: output
 ---
 [1]Top  [2]New  [3]Best  [4]Ask  [5]Show  [6]Jobs
-┌Top Stories───────────────────────────────────────────────────────────────────┐
-│    1. Read Story One (example.com)                                           │
-│       ▲ 100 | testuser | 10 comments | 1d ago                                │
-│▶   2. Unread Story Two (example.com)                                         │
-│       ▲ 200 | testuser | 10 comments | 1d ago                                │
-│    3. Read Story Three (example.com)                                         │
-│       ▲ 300 | testuser | 10 comments | 1d ago                                │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+────────────────────────────────────────────────────────────────────────────────
+  Read Story One (example.com)
+  ▲ 100 | testuser | 10 comments | 1d ago
+▶ Unread Story Two (example.com)
+  ▲ 200 | testuser | 10 comments | 1d ago
+  Read Story Three (example.com)
+  ▲ 300 | testuser | 10 comments | 1d ago
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
  Top  2/3 | H/L:feeds  ?:help  q:quit
