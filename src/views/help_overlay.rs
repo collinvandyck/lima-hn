@@ -3,7 +3,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::Style,
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Padding, Paragraph},
 };
@@ -15,6 +15,15 @@ use crate::keys::{Keymap, comments_keymap, global_keymap, stories_keymap};
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     if !app.help_overlay {
         return;
+    }
+
+    // Dim the underlying content
+    let buf = frame.buffer_mut();
+    for y in area.y..area.y + area.height {
+        for x in area.x..area.x + area.width {
+            let cell = &mut buf[(x, y)];
+            cell.set_style(cell.style().add_modifier(Modifier::DIM));
+        }
     }
 
     let theme = &app.theme;

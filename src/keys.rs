@@ -98,11 +98,14 @@ pub fn theme_picker_keymap() -> Keymap {
     Keymap::new()
         .bind(KeyCode::Char('j'), Message::ThemePickerDown)
         .bind(KeyCode::Down, Message::ThemePickerDown)
+        .bind_ctrl(KeyCode::Char('n'), Message::ThemePickerDown)
         .bind(KeyCode::Char('k'), Message::ThemePickerUp)
         .bind(KeyCode::Up, Message::ThemePickerUp)
+        .bind_ctrl(KeyCode::Char('p'), Message::ThemePickerUp)
         .bind(KeyCode::Enter, Message::ConfirmThemePicker)
         .bind(KeyCode::Esc, Message::CloseThemePicker)
         .bind(KeyCode::Char('q'), Message::CloseThemePicker)
+        .bind_ctrl(KeyCode::Char('c'), Message::CloseThemePicker)
 }
 
 /// Keybindings for the help overlay popup.
@@ -111,6 +114,7 @@ fn help_overlay_keymap() -> Keymap {
         .bind(KeyCode::Char('?'), Message::ToggleHelp)
         .bind(KeyCode::Esc, Message::ToggleHelp)
         .bind(KeyCode::Char('q'), Message::ToggleHelp)
+        .bind_ctrl(KeyCode::Char('c'), Message::ToggleHelp)
 }
 
 /// Navigation keybindings shared between stories and comments views.
