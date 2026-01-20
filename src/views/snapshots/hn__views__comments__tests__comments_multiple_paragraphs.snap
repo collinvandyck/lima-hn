@@ -1,0 +1,19 @@
+---
+source: src/views/comments.rs
+expression: output
+---
+Paragraph Test
+
+┌Comments (1)──────────────────────────────────────────────────────────────────┐
+│▶ [ ] writer · 1d ago                                                         │
+│      First paragraph with some text.                                         │
+│                                                                              │
+│      Second paragraph continues the thought.                                 │
+│                                                                              │
+│      Third paragraph wraps it up.                                            │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+ Comments  1/1 | l/h:expand  L/H:subtree  +/-:thread  p:parent  f:fav  Esc:back

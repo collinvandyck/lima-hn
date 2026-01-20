@@ -1,0 +1,24 @@
+---
+source: src/views/comments.rs
+expression: output
+---
+Rich Text Test
+
+┌Comments (3)──────────────────────────────────────────────────────────────────┐
+│▶ [ ] user1 · 1d ago                                                          │
+│      This has italic and code text.                                          │
+│                                                                              │
+│  [ ] user2 · 1d ago                                                          │
+│      > This is a quoted line                                                 │
+│                                                                              │
+│      And this is a reply.                                                    │
+│                                                                              │
+│  [ ] user3 · 1d ago                                                          │
+│      Check this link (https://example.com) for more.                         │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+ Comments  1/3 | l/h:expand  L/H:subtree  +/-:thread  p:parent  f:fav  Esc:back

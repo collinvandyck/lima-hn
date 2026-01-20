@@ -237,6 +237,28 @@ impl ResolvedTheme {
         Style::default().fg(self.comment_text)
     }
 
+    pub fn comment_italic_style(&self) -> Style {
+        Style::default()
+            .fg(self.comment_text)
+            .add_modifier(Modifier::ITALIC)
+    }
+
+    pub fn comment_code_style(&self) -> Style {
+        Style::default().fg(self.comment_text).bg(self.selection_bg)
+    }
+
+    pub fn comment_link_style(&self) -> Style {
+        Style::default()
+            .fg(self.info)
+            .add_modifier(Modifier::UNDERLINED)
+    }
+
+    pub fn comment_quote_style(&self) -> Style {
+        Style::default()
+            .fg(self.foreground_dim)
+            .add_modifier(Modifier::ITALIC)
+    }
+
     pub fn story_title_style(&self) -> Style {
         Style::default().fg(self.story_title)
     }

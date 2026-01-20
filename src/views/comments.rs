@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph as RatatuiParagraph},
 };
 use textwrap;
 use unicode_width::UnicodeWidthStr;
@@ -17,7 +17,7 @@ use crate::keys::{comments_keymap, global_keymap};
 use crate::theme::ResolvedTheme;
 use crate::time::{Clock, format_relative};
 use crate::views::common::{render_error, render_with_timestamp};
-use crate::views::html::strip_html;
+use crate::views::html::{InlineStyle, Paragraph, StyledSpan, parse_comment_html};
 use crate::views::status_bar::StatusBar;
 use crate::views::tree::{
     build_empty_line_prefix, build_meta_tree_prefix, build_text_prefix, compute_tree_context,
@@ -81,7 +81,7 @@ fn render_comment_list(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     if app.comment_tree.is_empty() {
-        let empty = Paragraph::new("No comments yet")
+        let empty = RatatuiParagraph::new("No comments yet")
             .style(theme.dim_style())
             .block(
                 Block::default()
@@ -229,31 +229,162 @@ fn build_text_lines(
     theme: &ResolvedTheme,
     color: ratatui::style::Color,
 ) -> Vec<Line<'static>> {
-    let text = strip_html(text);
+    let paragraphs = parse_comment_html(text);
     let prefix = build_text_prefix(depth, has_more_at_depth, show_children_connector, color);
     let prefix_width = prefix.content.width();
     let available_width = max_width.saturating_sub(prefix_width).max(20);
+    let mut lines = Vec::new();
+    for (i, para) in paragraphs.iter().enumerate() {
+        // Add blank line between paragraphs (except before first)
+        if i > 0 {
+            lines.push(Line::from(vec![prefix.clone()]));
+        }
+        let para_lines = render_paragraph(para, available_width, theme, &prefix);
+        lines.extend(para_lines);
+    }
+    lines
+}
 
-    wrap_text(&text, available_width)
-        .into_iter()
-        .map(|line| {
-            Line::from(vec![
-                prefix.clone(),
-                Span::styled(line, theme.comment_text_style()),
-            ])
+fn render_paragraph(
+    para: &Paragraph,
+    width: usize,
+    theme: &ResolvedTheme,
+    prefix: &Span<'static>,
+) -> Vec<Line<'static>> {
+    if para.is_code_block {
+        // Code blocks: render each line with code style, no wrapping
+        return para
+            .spans
+            .iter()
+            .flat_map(|span| {
+                span.text.lines().map(|line| {
+                    Line::from(vec![
+                        prefix.clone(),
+                        Span::styled(line.to_string(), theme.comment_code_style()),
+                    ])
+                })
+            })
+            .collect();
+    }
+    // Build styled spans for this paragraph
+    let base_style = if para.is_quote {
+        theme.comment_quote_style()
+    } else {
+        theme.comment_text_style()
+    };
+    // For quotes, add a visual quote indicator
+    let quote_prefix = if para.is_quote { "> " } else { "" };
+    // Expand links to show URL inline
+    let expanded_spans = expand_links(&para.spans);
+    // Wrap styled content
+    wrap_styled_paragraph(
+        &expanded_spans,
+        width,
+        theme,
+        prefix,
+        base_style,
+        quote_prefix,
+    )
+}
+
+fn expand_links(spans: &[StyledSpan]) -> Vec<StyledSpan> {
+    spans
+        .iter()
+        .flat_map(|span| match &span.style {
+            InlineStyle::Link { url } => {
+                vec![
+                    StyledSpan::link(span.text.clone(), url.clone()),
+                    StyledSpan::plain(format!(" ({url})")),
+                ]
+            }
+            _ => vec![span.clone()],
         })
         .collect()
 }
 
-fn wrap_text(text: &str, width: usize) -> Vec<String> {
-    if text.is_empty() {
+fn wrap_styled_paragraph(
+    spans: &[StyledSpan],
+    width: usize,
+    theme: &ResolvedTheme,
+    prefix: &Span<'static>,
+    base_style: Style,
+    quote_prefix: &str,
+) -> Vec<Line<'static>> {
+    if spans.is_empty() {
         return vec![];
     }
+    // Build flat text and track style boundaries
+    let mut full_text = String::new();
+    let mut boundaries: Vec<(usize, &StyledSpan)> = Vec::new();
+    for span in spans {
+        boundaries.push((full_text.len(), span));
+        full_text.push_str(&span.text);
+    }
+    if full_text.trim().is_empty() {
+        return vec![];
+    }
+    // Account for quote prefix in available width
+    let effective_width = width.saturating_sub(quote_prefix.len()).max(10);
+    // Wrap the text
+    let wrapped = textwrap::wrap(&full_text, effective_width);
+    let mut lines = Vec::new();
+    let mut char_offset = 0;
+    for wrapped_line in wrapped {
+        let line_len = wrapped_line.len();
+        let line_end = char_offset + line_len;
+        // Build spans for this wrapped line
+        let mut line_spans: Vec<Span<'static>> = vec![prefix.clone()];
+        // Add quote prefix if applicable
+        if !quote_prefix.is_empty() {
+            line_spans.push(Span::styled(quote_prefix.to_string(), base_style));
+        }
+        // Find which source spans contribute to this line
+        let mut pos = char_offset;
+        for (bound_start, styled_span) in &boundaries {
+            let bound_end = *bound_start + styled_span.text.len();
+            // Skip spans that end before this line
+            if bound_end <= char_offset {
+                continue;
+            }
+            // Stop if span starts after this line
+            if *bound_start >= line_end {
+                break;
+            }
+            // Calculate the slice of this span that falls within the line
+            let slice_start = pos.max(*bound_start);
+            let slice_end = line_end.min(bound_end);
+            if slice_start < slice_end {
+                let span_offset = slice_start - *bound_start;
+                let span_len = slice_end - slice_start;
+                let text_slice = &styled_span.text[span_offset..span_offset + span_len];
+                let style = style_for_span(styled_span, theme, base_style);
+                line_spans.push(Span::styled(text_slice.to_string(), style));
+                pos = slice_end;
+            }
+        }
+        lines.push(Line::from(line_spans));
+        // Move past the wrapped line plus any whitespace that was consumed
+        char_offset = line_end;
+        // Skip whitespace between wrapped lines
+        while char_offset < full_text.len()
+            && full_text[char_offset..].starts_with(char::is_whitespace)
+        {
+            char_offset += full_text[char_offset..]
+                .chars()
+                .next()
+                .map_or(0, char::len_utf8);
+        }
+    }
+    lines
+}
 
-    textwrap::wrap(text, width)
-        .into_iter()
-        .map(std::borrow::Cow::into_owned)
-        .collect()
+fn style_for_span(span: &StyledSpan, theme: &ResolvedTheme, base_style: Style) -> Style {
+    match &span.style {
+        InlineStyle::Plain => base_style,
+        InlineStyle::Italic => theme.comment_italic_style(),
+        InlineStyle::Code => theme.comment_code_style(),
+        InlineStyle::Link { .. } => theme.comment_link_style(),
+    }
 }
 
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
@@ -671,6 +802,98 @@ mod tests {
             .build();
 
         let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_comments_rich_text_formatting() {
+        let comments = vec![
+            CommentBuilder::new()
+                .id(1)
+                .text("This has <i>italic</i> and <code>code</code> text.")
+                .author("user1")
+                .depth(0)
+                .build(),
+            CommentBuilder::new()
+                .id(2)
+                .text("&gt; This is a quoted line<p>And this is a reply.")
+                .author("user2")
+                .depth(0)
+                .build(),
+            CommentBuilder::new()
+                .id(3)
+                .text(r#"Check <a href="https://example.com">this link</a> for more."#)
+                .author("user3")
+                .depth(0)
+                .build(),
+        ];
+
+        let app = TestAppBuilder::new()
+            .with_comments(comments)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Rich Text Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .build();
+
+        let output = render_to_string(80, 20, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_comments_code_block() {
+        let comments = vec![CommentBuilder::new()
+            .id(1)
+            .text("Here is some code:<p><pre><code>fn main() {\n    println!(\"hello\");\n}</code></pre>")
+            .author("coder")
+            .depth(0)
+            .build()];
+
+        let app = TestAppBuilder::new()
+            .with_comments(comments)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Code Block Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .build();
+
+        let output = render_to_string(80, 15, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_comments_multiple_paragraphs() {
+        let comments = vec![CommentBuilder::new()
+            .id(1)
+            .text("First paragraph with some text.<p>Second paragraph continues the thought.<p>Third paragraph wraps it up.")
+            .author("writer")
+            .depth(0)
+            .build()];
+
+        let app = TestAppBuilder::new()
+            .with_comments(comments)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Paragraph Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .build();
+
+        let output = render_to_string(80, 15, |frame| {
             render(frame, &app, frame.area());
         });
 

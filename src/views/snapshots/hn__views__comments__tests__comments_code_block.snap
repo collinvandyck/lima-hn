@@ -1,0 +1,19 @@
+---
+source: src/views/comments.rs
+expression: output
+---
+Code Block Test
+
+┌Comments (1)──────────────────────────────────────────────────────────────────┐
+│▶ [ ] coder · 1d ago                                                          │
+│      Here is some code:                                                      │
+│                                                                              │
+│      fn main() {                                                             │
+│          println!("hello");                                                  │
+│      }                                                                       │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+ Comments  1/1 | l/h:expand  L/H:subtree  +/-:thread  p:parent  f:fav  Esc:back
