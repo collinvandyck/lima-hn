@@ -125,8 +125,8 @@ pub fn stories_help() -> HelpConfig {
 pub fn comments_help() -> HelpConfig {
     use Message::{
         Back, CollapseComment, CollapseSubtree, CollapseThread, CopyStoryUrl, CopyUrl,
-        ExpandComment, ExpandSubtree, ExpandThread, OpenStoryUrl, OpenThemePicker, OpenUrl, Quit,
-        Refresh, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite, ToggleHelp,
+        ExpandComment, ExpandSubtree, ExpandThread, GoToParent, OpenStoryUrl, OpenThemePicker,
+        OpenUrl, Quit, Refresh, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite, ToggleHelp,
         ToggleStoryFavorite,
     };
     HelpConfig {
@@ -135,6 +135,7 @@ pub fn comments_help() -> HelpConfig {
             HelpItem::pair(ExpandComment, CollapseComment, "expand"),
             HelpItem::pair(ExpandSubtree, CollapseSubtree, "subtree"),
             HelpItem::pair(ExpandThread, CollapseThread, "thread"),
+            HelpItem::new(GoToParent, "parent"),
             HelpItem::new(OpenUrl, "link"),
             HelpItem::new(OpenStoryUrl, "story"),
             HelpItem::new(CopyUrl, "copy"),
@@ -152,6 +153,7 @@ pub fn comments_help() -> HelpConfig {
             HelpItem::pair(ExpandComment, CollapseComment, "expand"),
             HelpItem::pair(ExpandSubtree, CollapseSubtree, "subtree"),
             HelpItem::pair(ExpandThread, CollapseThread, "thread"),
+            HelpItem::new(GoToParent, "parent"),
             HelpItem::new(ToggleFavorite, "fav"),
             HelpItem::new(Back, "back"),
             HelpItem::new(ToggleHelp, "help"),
@@ -204,8 +206,8 @@ pub fn stories_overlay_items() -> Vec<HelpItem> {
 pub fn comments_overlay_items() -> Vec<HelpItem> {
     use Message::{
         Back, CollapseComment, CollapseSubtree, CollapseThread, CopyStoryUrl, CopyUrl,
-        ExpandComment, ExpandSubtree, ExpandThread, OpenStoryUrl, OpenThemePicker, OpenUrl, Quit,
-        Refresh, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite, ToggleHelp,
+        ExpandComment, ExpandSubtree, ExpandThread, GoToParent, OpenStoryUrl, OpenThemePicker,
+        OpenUrl, Quit, Refresh, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite, ToggleHelp,
         ToggleStoryFavorite,
     };
     vec![
@@ -213,6 +215,7 @@ pub fn comments_overlay_items() -> Vec<HelpItem> {
         HelpItem::pair(ExpandComment, CollapseComment, "expand/collapse"),
         HelpItem::pair(ExpandSubtree, CollapseSubtree, "subtree"),
         HelpItem::pair(ExpandThread, CollapseThread, "all comments"),
+        HelpItem::new(GoToParent, "go to parent"),
         HelpItem::new(OpenUrl, "open comment link"),
         HelpItem::new(OpenStoryUrl, "open story link"),
         HelpItem::new(CopyUrl, "copy url"),

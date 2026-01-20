@@ -174,6 +174,7 @@ pub enum Message {
     CollapseSubtree,
     ExpandThread,
     CollapseThread,
+    GoToParent,
     Back,
     Quit,
     Refresh,
@@ -400,6 +401,7 @@ impl App {
             Message::OpenComments => self.open_comments(),
             Message::ExpandComment => self.expand_comment(),
             Message::CollapseComment => self.collapse_comment(),
+            Message::GoToParent => self.go_to_parent(),
             Message::ExpandSubtree => self.expand_subtree(),
             Message::CollapseSubtree => self.collapse_subtree(),
             Message::ExpandThread => self.expand_thread(),
@@ -527,28 +529,34 @@ impl App {
     fn collapse_comment(&mut self) {
         if let View::Comments { .. } = self.view {
             let Some(comment) = self.selected_comment() else {
-                // No comments - go back to stories
                 self.go_back();
                 return;
             };
-
             let (id, depth) = (comment.id, comment.depth);
             let has_children = !comment.kids.is_empty();
             let is_expanded = self.comment_tree.is_expanded(id);
-
-            if depth == 0 {
-                // Top-level: collapse if expanded with children, otherwise go back
-                if has_children && is_expanded {
-                    self.comment_tree.collapse(id);
-                } else {
-                    self.go_back();
-                }
+            // If expanded with children, collapse but stay on comment
+            if has_children && is_expanded {
+                self.comment_tree.collapse(id);
                 return;
             }
+            // Otherwise navigate up: to parent if nested, back to stories if top-level
+            if depth == 0 {
+                self.go_back();
+            } else {
+                let visible = self.visible_comment_indices();
+                if let Some(parent_idx) = self
+                    .comment_tree
+                    .find_parent_visible_index(&visible, self.selected_index)
+                {
+                    self.selected_index = parent_idx;
+                }
+            }
+        }
+    }
 
-            self.comment_tree.collapse(id);
-
-            // Navigate to parent
+    fn go_to_parent(&mut self) {
+        if let View::Comments { .. } = self.view {
             let visible = self.visible_comment_indices();
             if let Some(parent_idx) = self
                 .comment_tree

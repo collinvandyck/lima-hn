@@ -164,6 +164,7 @@ pub fn comments_keymap() -> Keymap {
         .bind(KeyCode::Char('='), Message::ExpandThread)
         .bind(KeyCode::Char('-'), Message::CollapseThread)
         .bind(KeyCode::Char('_'), Message::CollapseThread)
+        .bind(KeyCode::Char('p'), Message::GoToParent)
         .bind(KeyCode::Char('f'), Message::ToggleFavorite)
         .bind(KeyCode::Char('F'), Message::ToggleStoryFavorite)
         .bind(KeyCode::Char('O'), Message::OpenStoryUrl)
