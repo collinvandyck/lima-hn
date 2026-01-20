@@ -22,7 +22,7 @@ pub fn render_error(frame: &mut Frame, error: &str, theme: &ResolvedTheme, area:
 }
 
 /// Render a line with an optional right-aligned timestamp showing when data was fetched.
-/// If fetched_at is Some, shows "loaded Xm ago" (dimmed if <5m, normal if >=5m).
+/// If `fetched_at` is Some, shows "loaded Xm ago" (dimmed if <5m, normal if >=5m).
 pub fn render_with_timestamp(
     frame: &mut Frame,
     content_line: Line,

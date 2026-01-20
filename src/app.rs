@@ -73,7 +73,7 @@ impl DebugState {
         let id = self.next_task_id;
         self.next_task_id += 1;
         let desc = description.into();
-        self.log(format!("Started: {}", desc));
+        self.log(format!("Started: {desc}"));
         self.running_tasks.push(TaskInfo {
             id,
             description: desc,
@@ -90,7 +90,7 @@ impl DebugState {
         }
     }
 
-    pub fn toggle(&mut self) {
+    pub const fn toggle(&mut self) {
         self.visible = !self.visible;
     }
 }
@@ -140,7 +140,7 @@ impl LoadState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum View {
     #[default]
     Stories,
@@ -159,7 +159,7 @@ pub struct ThemePicker {
     pub original: ResolvedTheme,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
     SelectNext,
     SelectPrev,
@@ -460,11 +460,11 @@ impl App {
                 Ok(mut current_settings) => {
                     current_settings.theme = Some(self.theme.name.clone());
                     if let Err(e) = current_settings.save(&path) {
-                        self.debug.log(format!("Failed to save settings: {}", e));
+                        self.debug.log(format!("Failed to save settings: {e}"));
                     }
                 }
                 Err(e) if path.exists() => {
-                    self.debug.log(format!("Won't save: {}", e));
+                    self.debug.log(format!("Won't save: {e}"));
                 }
                 Err(_) => {
                     let settings = Settings {
@@ -472,7 +472,7 @@ impl App {
                         ..Default::default()
                     };
                     if let Err(e) = settings.save(&path) {
-                        self.debug.log(format!("Failed to save settings: {}", e));
+                        self.debug.log(format!("Failed to save settings: {e}"));
                     }
                 }
             }
@@ -611,13 +611,13 @@ impl App {
         }
     }
 
-    fn select_prev(&mut self) {
+    const fn select_prev(&mut self) {
         if self.selected_index > 0 {
             self.selected_index -= 1;
         }
     }
 
-    fn select_first(&mut self) {
+    const fn select_first(&mut self) {
         self.selected_index = 0;
         self.scroll_offset = 0;
     }
@@ -636,7 +636,7 @@ impl App {
         }
     }
 
-    fn page_up(&mut self) {
+    const fn page_up(&mut self) {
         self.selected_index = self.selected_index.saturating_sub(10);
     }
 
@@ -670,7 +670,7 @@ impl App {
     }
 
     fn open_hn_page(&mut self) {
-        if let View::Stories = &self.view
+        if matches!(&self.view, View::Stories)
             && let Some(story) = self.stories.get(self.selected_index)
         {
             let id = story.id;
@@ -706,7 +706,7 @@ impl App {
 
     fn copy_to_clipboard(&mut self, text: &str, label: &str) {
         match arboard::Clipboard::new().and_then(|mut cb| cb.set_text(text)) {
-            Ok(()) => self.flash(&format!("copied {}", label)),
+            Ok(()) => self.flash(&format!("copied {label}")),
             Err(_) => self.flash("clipboard unavailable"),
         }
     }
@@ -731,7 +731,7 @@ impl App {
     }
 
     fn open_comments(&mut self) {
-        if let View::Stories = self.view
+        if self.view == View::Stories
             && let Some(story) = self.stories.get(self.selected_index).cloned()
         {
             let story_index = self.selected_index;
@@ -842,7 +842,7 @@ impl App {
         });
     }
 
-    fn should_load_more(&self) -> bool {
+    const fn should_load_more(&self) -> bool {
         const THRESHOLD: usize = 5;
         matches!(self.view, View::Stories)
             && !self.load.loading
@@ -857,8 +857,7 @@ impl App {
         const STORY_HEIGHT: u16 = 2; // title + metadata
 
         self.viewport_height
-            .map(|h| (h.saturating_sub(LAYOUT_OVERHEAD) / STORY_HEIGHT) as usize)
-            .unwrap_or(0)
+            .map_or(0, |h| (h.saturating_sub(LAYOUT_OVERHEAD) / STORY_HEIGHT) as usize)
     }
 
     fn should_fill_viewport(&self) -> bool {
@@ -928,9 +927,9 @@ impl App {
         let client = self.client.clone();
         let tx = self.result_tx.clone();
         let task_desc = if force_refresh {
-            format!("Refresh comments for {}", story_id)
+            format!("Refresh comments for {story_id}")
         } else {
-            format!("Load comments for {}", story_id)
+            format!("Load comments for {story_id}")
         };
         let task_id = self.debug.start_task(task_desc);
         tokio::spawn(async move {

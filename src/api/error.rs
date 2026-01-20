@@ -23,20 +23,20 @@ impl ApiError {
                 } else if details.contains("dns") || details.contains("resolve") {
                     "Network error: Could not reach server.".into()
                 } else {
-                    format!("Network error: {}", details)
+                    format!("Network error: {details}")
                 }
             }
             Self::HttpStatus(429, _) => "Rate limited. Please wait a moment.".into(),
             Self::HttpStatus(404, _) => "Item not found.".into(),
             Self::HttpStatus(500..=599, _) => "Server error. Please try again later.".into(),
-            Self::HttpStatus(code, msg) => format!("HTTP error {}: {}", code, msg),
-            Self::Parse(details) => format!("Failed to parse response: {}", details),
-            Self::Storage(details) => format!("Storage error: {}", details),
+            Self::HttpStatus(code, msg) => format!("HTTP error {code}: {msg}"),
+            Self::Parse(details) => format!("Failed to parse response: {details}"),
+            Self::Storage(details) => format!("Storage error: {details}"),
         }
     }
 
     /// Returns true if this error should cause the program to exit.
-    pub fn is_fatal(&self) -> bool {
+    pub const fn is_fatal(&self) -> bool {
         matches!(self, Self::Storage(_))
     }
 }
@@ -70,6 +70,6 @@ impl From<reqwest::Error> for ApiError {
 
 impl From<crate::storage::StorageError> for ApiError {
     fn from(err: crate::storage::StorageError) -> Self {
-        ApiError::Storage(err.to_string())
+        Self::Storage(err.to_string())
     }
 }

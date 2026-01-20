@@ -39,7 +39,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled(format!("[{}] ", task.id), theme.dim_style()),
             Span::styled(&task.description, Style::default().fg(theme.foreground)),
             Span::styled(
-                format!(" ({:.1?})", elapsed),
+                format!(" ({elapsed:.1?})"),
                 Style::default().fg(theme.story_time),
             ),
         ]));

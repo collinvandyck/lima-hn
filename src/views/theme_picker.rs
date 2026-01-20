@@ -58,7 +58,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(help, chunks[1]);
 }
 
-fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
+const fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let x = area.x + (area.width.saturating_sub(width)) / 2;
     let y = area.y + (area.height.saturating_sub(height)) / 2;
     Rect::new(x, y, width, height)

@@ -39,14 +39,14 @@ pub fn strip_html(html: &str) -> String {
             {
                 let link_text = &part[start + 1..end];
                 let rest = &part[end + 4..];
-                format!("{}{}", link_text, rest)
+                format!("{link_text}{rest}")
             } else {
                 part.to_string()
             }
         })
         .collect::<String>()
         .lines()
-        .map(|l| l.trim())
+        .map(str::trim)
         .collect::<Vec<_>>()
         .join(" ")
         .split_whitespace()

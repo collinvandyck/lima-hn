@@ -252,7 +252,7 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 
     textwrap::wrap(text, width)
         .into_iter()
-        .map(|cow| cow.into_owned())
+        .map(std::borrow::Cow::into_owned)
         .collect()
 }
 

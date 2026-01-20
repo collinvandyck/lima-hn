@@ -22,7 +22,7 @@ pub struct StatusBar<'a> {
 }
 
 impl<'a> StatusBar<'a> {
-    pub fn new(theme: &'a ResolvedTheme) -> Self {
+    pub const fn new(theme: &'a ResolvedTheme) -> Self {
         Self {
             theme,
             label: "",
@@ -33,27 +33,27 @@ impl<'a> StatusBar<'a> {
         }
     }
 
-    pub fn label(mut self, label: &'a str) -> Self {
+    pub const fn label(mut self, label: &'a str) -> Self {
         self.label = label;
         self
     }
 
-    pub fn loading(mut self, text: &'a str) -> Self {
+    pub const fn loading(mut self, text: &'a str) -> Self {
         self.loading_text = Some(text);
         self
     }
 
-    pub fn position(mut self, current: usize, total: usize) -> Self {
+    pub const fn position(mut self, current: usize, total: usize) -> Self {
         self.position = Some((current, total));
         self
     }
 
-    pub fn help(mut self, text: &'a str) -> Self {
+    pub const fn help(mut self, text: &'a str) -> Self {
         self.help_text = text;
         self
     }
 
-    pub fn flash(mut self, text: Option<&'a str>) -> Self {
+    pub const fn flash(mut self, text: Option<&'a str>) -> Self {
         self.flash_text = text;
         self
     }
@@ -74,7 +74,7 @@ impl<'a> StatusBar<'a> {
 
         if let Some((current, total)) = self.position {
             spans.push(Span::styled(
-                format!("{}/{}", current, total),
+                format!("{current}/{total}"),
                 self.theme.dim_style(),
             ));
             spans.push(Span::raw(" | "));

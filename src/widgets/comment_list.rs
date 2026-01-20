@@ -12,7 +12,7 @@ use ratatui::{
     widgets::{Block, StatefulWidget, Widget},
 };
 
-/// State for the CommentList widget.
+/// State for the `CommentList` widget.
 #[derive(Default)]
 pub struct CommentListState {
     selected: Option<usize>,
@@ -23,7 +23,7 @@ impl CommentListState {
         Self::default()
     }
 
-    pub fn select(&mut self, index: Option<usize>) {
+    pub const fn select(&mut self, index: Option<usize>) {
         self.selected = index;
     }
 }
@@ -34,11 +34,11 @@ pub struct CommentListItem<'a> {
 }
 
 impl<'a> CommentListItem<'a> {
-    pub fn new(lines: Vec<Line<'a>>) -> Self {
+    pub const fn new(lines: Vec<Line<'a>>) -> Self {
         Self { lines }
     }
 
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.lines.len()
     }
 }
@@ -66,18 +66,18 @@ impl<'a> CommentList<'a> {
         self
     }
 
-    pub fn highlight_style(mut self, style: Style) -> Self {
+    pub const fn highlight_style(mut self, style: Style) -> Self {
         self.highlight_style = style;
         self
     }
 
-    pub fn highlight_symbol(mut self, symbol: &'a str) -> Self {
+    pub const fn highlight_symbol(mut self, symbol: &'a str) -> Self {
         self.highlight_symbol = symbol;
         self
     }
 }
 
-impl<'a> StatefulWidget for CommentList<'a> {
+impl StatefulWidget for CommentList<'_> {
     type State = CommentListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -94,12 +94,11 @@ impl<'a> StatefulWidget for CommentList<'a> {
             return;
         }
 
-        let item_heights: Vec<usize> = self.items.iter().map(|i| i.height()).collect();
+        let item_heights: Vec<usize> = self.items.iter().map(CommentListItem::height).collect();
         let viewport_height = inner.height as usize;
         let line_offset = state
             .selected
-            .map(|s| calculate_centering_offset(s, &item_heights, viewport_height))
-            .unwrap_or(0);
+            .map_or(0, |s| calculate_centering_offset(s, &item_heights, viewport_height));
 
         let symbol_width = self.highlight_symbol.chars().count() as u16;
         let mut current_line = 0;

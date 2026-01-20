@@ -10,7 +10,7 @@ pub struct Keymap {
 }
 
 impl Keymap {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             bindings: Vec::new(),
         }
@@ -40,7 +40,7 @@ impl Keymap {
 
     /// Extend this keymap with another. The other keymap's bindings take precedence.
     #[cfg_attr(not(test), allow(dead_code))]
-    pub fn extend(mut self, other: Keymap) -> Self {
+    pub fn extend(mut self, other: Self) -> Self {
         self.bindings.extend(other.bindings);
         self
     }
@@ -66,13 +66,13 @@ pub fn format_key(code: KeyCode, mods: KeyModifiers) -> String {
         KeyCode::Right => "→".to_string(),
         KeyCode::Backspace => "Bksp".to_string(),
         KeyCode::Tab => "Tab".to_string(),
-        KeyCode::F(n) => format!("F{}", n),
+        KeyCode::F(n) => format!("F{n}"),
         _ => "?".to_string(),
     };
     if mods.contains(KeyModifiers::CONTROL) {
-        format!("C-{}", key_str)
+        format!("C-{key_str}")
     } else if mods.contains(KeyModifiers::ALT) {
-        format!("M-{}", key_str)
+        format!("M-{key_str}")
     } else {
         key_str
     }

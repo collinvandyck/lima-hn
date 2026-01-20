@@ -27,7 +27,7 @@ impl StorableStory {
 
 impl From<&Story> for StorableStory {
     fn from(story: &Story) -> Self {
-        StorableStory {
+        Self {
             id: story.id,
             title: story.title.clone(),
             url: story.url.clone(),
@@ -45,7 +45,7 @@ impl From<&Story> for StorableStory {
 
 impl From<StorableStory> for Story {
     fn from(stored: StorableStory) -> Self {
-        Story {
+        Self {
             id: stored.id,
             title: stored.title,
             url: stored.url,
@@ -81,7 +81,7 @@ impl StorableComment {
     }
 
     pub fn from_comment(comment: &Comment, story_id: u64, parent_id: Option<u64>) -> Self {
-        StorableComment {
+        Self {
             id: comment.id,
             story_id,
             parent_id,
@@ -98,7 +98,7 @@ impl StorableComment {
 
 impl From<StorableComment> for Comment {
     fn from(stored: StorableComment) -> Self {
-        Comment {
+        Self {
             id: stored.id,
             text: stored.text,
             by: stored.by,
@@ -121,7 +121,7 @@ pub struct CachedFeed {
 #[allow(dead_code)] // Used by future features
 impl CachedFeed {
     pub fn new(feed: Feed, ids: Vec<u64>) -> Self {
-        CachedFeed {
+        Self {
             feed,
             ids,
             fetched_at: now_unix(),

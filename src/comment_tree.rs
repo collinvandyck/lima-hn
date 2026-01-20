@@ -56,12 +56,12 @@ impl CommentTree {
     }
 
     /// Check if the tree is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.comments.is_empty()
     }
 
     /// Total number of comments (not just visible).
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.comments.len()
     }
 

@@ -74,9 +74,9 @@ impl std::str::FromStr for OutputFormat {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "toml" => Ok(OutputFormat::Toml),
-            "json" => Ok(OutputFormat::Json),
-            _ => Err(format!("Invalid format: {}. Use 'toml' or 'json'", s)),
+            "toml" => Ok(Self::Toml),
+            "json" => Ok(Self::Json),
+            _ => Err(format!("Invalid format: {s}. Use 'toml' or 'json'")),
         }
     }
 }

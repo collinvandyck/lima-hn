@@ -47,7 +47,7 @@ impl HelpItem {
     }
 
     /// Format this help item for overlay display.
-    /// Returns (keys_string, label) or None if no keys are bound.
+    /// Returns (`keys_string`, label) or None if no keys are bound.
     pub fn format_for_overlay(&self, keymap: &Keymap) -> Option<(String, &'static str)> {
         let keys: Vec<String> = self
             .messages
@@ -91,7 +91,7 @@ impl HelpConfig {
 
 /// Help configuration for the stories view.
 pub fn stories_help() -> HelpConfig {
-    use Message::*;
+    use Message::{SelectNext, SelectPrev, SelectFirst, SelectLast, PrevFeed, NextFeed, OpenUrl, OpenHnPage, CopyUrl, OpenComments, ToggleFavorite, Refresh, OpenThemePicker, ToggleDebug, Quit, ToggleHelp};
     HelpConfig {
         expanded: vec![
             HelpItem::pair(SelectNext, SelectPrev, "nav"),
@@ -119,7 +119,7 @@ pub fn stories_help() -> HelpConfig {
 
 /// Help configuration for the comments view.
 pub fn comments_help() -> HelpConfig {
-    use Message::*;
+    use Message::{SelectNext, SelectPrev, ExpandComment, CollapseComment, ExpandSubtree, CollapseSubtree, ExpandThread, CollapseThread, OpenUrl, OpenStoryUrl, CopyUrl, CopyStoryUrl, ToggleFavorite, ToggleStoryFavorite, Back, Refresh, OpenThemePicker, ToggleDebug, Quit, ToggleHelp};
     HelpConfig {
         expanded: vec![
             HelpItem::pair(SelectNext, SelectPrev, "nav"),
@@ -152,7 +152,7 @@ pub fn comments_help() -> HelpConfig {
 
 /// Help configuration for the theme picker.
 pub fn theme_picker_help() -> HelpConfig {
-    use Message::*;
+    use Message::{ThemePickerDown, ThemePickerUp, ConfirmThemePicker, CloseThemePicker};
     HelpConfig {
         expanded: vec![
             HelpItem::pair(ThemePickerDown, ThemePickerUp, "select"),
@@ -169,7 +169,7 @@ pub fn theme_picker_help() -> HelpConfig {
 
 /// Help items for the stories view overlay.
 pub fn stories_overlay_items() -> Vec<HelpItem> {
-    use Message::*;
+    use Message::{SelectNext, SelectPrev, SelectFirst, SelectLast, PrevFeed, NextFeed, OpenComments, OpenUrl, OpenHnPage, CopyUrl, ToggleFavorite, Refresh, OpenThemePicker, ToggleDebug, Quit, ToggleHelp};
     vec![
         HelpItem::pair(SelectNext, SelectPrev, "navigate"),
         HelpItem::pair(SelectFirst, SelectLast, "top/bottom"),
@@ -189,7 +189,7 @@ pub fn stories_overlay_items() -> Vec<HelpItem> {
 
 /// Help items for the comments view overlay.
 pub fn comments_overlay_items() -> Vec<HelpItem> {
-    use Message::*;
+    use Message::{SelectNext, SelectPrev, ExpandComment, CollapseComment, ExpandSubtree, CollapseSubtree, ExpandThread, CollapseThread, OpenUrl, OpenStoryUrl, CopyUrl, CopyStoryUrl, ToggleFavorite, ToggleStoryFavorite, Back, Refresh, OpenThemePicker, ToggleDebug, Quit, ToggleHelp};
     vec![
         HelpItem::pair(SelectNext, SelectPrev, "navigate"),
         HelpItem::pair(ExpandComment, CollapseComment, "expand/collapse"),

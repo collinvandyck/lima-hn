@@ -79,18 +79,18 @@ fn handle_theme_command(args: &ThemeArgs, custom_config_dir: Option<&PathBuf>) -
             }
         }
         ThemeCommands::Show { name, format } => {
-            let theme = by_name(name).with_context(|| format!("Theme '{}' not found", name))?;
+            let theme = by_name(name).with_context(|| format!("Theme '{name}' not found"))?;
 
             match format {
                 OutputFormat::Toml => {
                     let toml = theme::loader::theme_to_toml(&theme)
                         .context("Failed to serialize theme")?;
-                    println!("{}", toml);
+                    println!("{toml}");
                 }
                 OutputFormat::Json => {
                     let json = serde_json::to_string_pretty(&theme)
                         .context("Failed to serialize theme to JSON")?;
-                    println!("{}", json);
+                    println!("{json}");
                 }
             }
         }
@@ -121,7 +121,7 @@ fn resolve_theme(
 
     if let Some(theme_arg) = theme_name {
         let path = Path::new(theme_arg);
-        if path.exists() && path.extension().map(|e| e == "toml").unwrap_or(false) {
+        if path.exists() && path.extension().is_some_and(|e| e == "toml") {
             let theme = load_theme_file(path)?;
             return Ok(theme.into());
         }
@@ -131,7 +131,7 @@ fn resolve_theme(
         }
 
         if let Some(config_dir) = config_dir {
-            let custom_path = settings::themes_dir(config_dir).join(format!("{}.toml", theme_arg));
+            let custom_path = settings::themes_dir(config_dir).join(format!("{theme_arg}.toml"));
             if custom_path.exists() {
                 let theme = load_theme_file(&custom_path)?;
                 return Ok(theme.into());
@@ -139,8 +139,7 @@ fn resolve_theme(
         }
 
         anyhow::bail!(
-            "Theme '{}' not found. Use 'hn theme list' to see available themes.",
-            theme_arg
+            "Theme '{theme_arg}' not found. Use 'hn theme list' to see available themes."
         );
     }
 

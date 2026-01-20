@@ -136,7 +136,7 @@ impl Harness {
             };
 
             let json = serde_json::to_string(&response)?;
-            writeln!(writer, "{}", json)?;
+            writeln!(writer, "{json}")?;
             writer.flush()?;
 
             if should_quit {
@@ -191,7 +191,7 @@ fn main() -> Result<()> {
         .nth(1)
         .unwrap_or_else(|| "/tmp/hn.sock".into());
 
-    eprintln!("agent-harness: socket={}", socket_path);
+    eprintln!("agent-harness: socket={socket_path}");
 
     let mut harness = Harness::new(&socket_path, 80, 24)?;
     harness.run()

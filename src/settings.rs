@@ -33,7 +33,7 @@ impl Settings {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read settings from {}", path.display()))?;
 
-        let settings: Settings = toml::from_str(&content)
+        let settings: Self = toml::from_str(&content)
             .with_context(|| format!("Failed to parse settings from {}", path.display()))?;
 
         settings.validate()?;

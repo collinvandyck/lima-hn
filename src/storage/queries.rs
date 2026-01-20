@@ -37,10 +37,10 @@ pub fn save_story(conn: &Connection, story: &StorableStory) -> Result<StorableSt
             story.id as i64,
             story.title,
             story.url,
-            story.score as i64,
+            i64::from(story.score),
             story.by,
             story.time as i64,
-            story.descendants as i64,
+            i64::from(story.descendants),
             kids_to_json(&story.kids),
             story.fetched_at as i64,
             story.read_at.map(|t| t as i64),
@@ -145,8 +145,7 @@ pub fn save_comments(
     let ids: Vec<i64> = comments.iter().map(|c| c.id as i64).collect();
     let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let delete_sql = format!(
-        "DELETE FROM comments WHERE story_id = ?1 AND id NOT IN ({})",
-        placeholders
+        "DELETE FROM comments WHERE story_id = ?1 AND id NOT IN ({placeholders})"
     );
     tx.execute(
         &delete_sql,
@@ -189,7 +188,7 @@ pub fn get_comments(
     Ok(comments)
 }
 
-fn feed_type_str(feed: Feed) -> &'static str {
+const fn feed_type_str(feed: Feed) -> &'static str {
     match feed {
         Feed::Favorites => "favorites",
         Feed::Top => "top",
@@ -263,7 +262,7 @@ pub fn get_feed(conn: &Connection, feed: Feed) -> Result<Option<CachedFeed>, Sto
     let mut stmt =
         conn.prepare("SELECT story_id FROM feed_stories WHERE feed_id = ?1 ORDER BY position")?;
     let rows = stmt.query_map(params![feed_id], |row| row.get::<_, i64>(0))?;
-    let ids: Vec<u64> = rows.filter_map(|r| r.ok()).map(|id| id as u64).collect();
+    let ids: Vec<u64> = rows.filter_map(std::result::Result::ok).map(|id| id as u64).collect();
     if ids.is_empty() {
         return Ok(None);
     }
@@ -282,7 +281,7 @@ pub fn mark_story_read(conn: &Connection, id: u64) -> Result<(), StorageError> {
     Ok(())
 }
 
-/// Toggle favorite status for a story. Returns the new favorited_at value (Some if favorited, None if unfavorited).
+/// Toggle favorite status for a story. Returns the new `favorited_at` value (Some if favorited, None if unfavorited).
 pub fn toggle_story_favorite(conn: &Connection, id: u64) -> Result<Option<u64>, StorageError> {
     let existing: Option<i64> = conn
         .query_row(
@@ -308,7 +307,7 @@ pub fn toggle_story_favorite(conn: &Connection, id: u64) -> Result<Option<u64>, 
     }
 }
 
-/// Toggle favorite status for a comment. Returns the new favorited_at value (Some if favorited, None if unfavorited).
+/// Toggle favorite status for a comment. Returns the new `favorited_at` value (Some if favorited, None if unfavorited).
 pub fn toggle_comment_favorite(conn: &Connection, id: u64) -> Result<Option<u64>, StorageError> {
     let existing: Option<i64> = conn
         .query_row(

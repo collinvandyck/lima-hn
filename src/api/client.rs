@@ -57,7 +57,7 @@ impl HnClient {
         }
     }
 
-    pub fn storage(&self) -> &Storage {
+    pub const fn storage(&self) -> &Storage {
         &self.storage
     }
 
@@ -150,7 +150,9 @@ impl HnClient {
         let mut stories: Vec<Story> = Vec::with_capacity(ids.len());
         let mut to_fetch = Vec::new();
         // Check storage for cached stories (unless forcing refresh)
-        if !force_refresh {
+        if force_refresh {
+            to_fetch.extend_from_slice(ids);
+        } else {
             for &id in ids {
                 if let Ok(Some(cached)) = self.storage.get_fresh_story(id).await {
                     debug!(story_id = id, "cache hit");
@@ -160,8 +162,6 @@ impl HnClient {
                     to_fetch.push(id);
                 }
             }
-        } else {
-            to_fetch.extend_from_slice(ids);
         }
         // Fetch remaining from API
         if !to_fetch.is_empty() {
@@ -169,7 +169,7 @@ impl HnClient {
             let results = futures::future::join_all(futures).await;
             let fetched: Vec<Story> = results
                 .into_iter()
-                .filter_map(|r| r.ok())
+                .filter_map(std::result::Result::ok)
                 .filter_map(Story::from_item)
                 .collect();
             // Write-through to storage, using returned row to get preserved read_at
@@ -201,7 +201,7 @@ impl HnClient {
             && let Ok(Some((cached, fetched_at))) = self.storage.get_fresh_comments(story.id).await
         {
             info!(count = cached.len(), source = "cache", "loaded comments");
-            let comments: Vec<Comment> = cached.into_iter().map(|c| c.into()).collect();
+            let comments: Vec<Comment> = cached.into_iter().map(std::convert::Into::into).collect();
             return Ok(FetchedComments {
                 comments: order_cached_comments(comments, &story.kids),
                 fetched_at,
@@ -295,7 +295,7 @@ fn find_parent_id(comments: &[Comment], comment_id: u64) -> Option<u64> {
 
 /// Core DFS tree builder - the single implementation for ordering comments.
 ///
-/// Takes items in a HashMap, traverses from root_kids in DFS order,
+/// Takes items in a `HashMap`, traverses from `root_kids` in DFS order,
 /// and converts each item to a Comment using the provided closure.
 fn build_tree<T, K, F>(
     mut items: HashMap<u64, T>,
@@ -324,10 +324,10 @@ where
     result
 }
 
-/// Builds a DFS-ordered comment tree from fetched HnItems.
+/// Builds a DFS-ordered comment tree from fetched `HnItems`.
 ///
 /// Pre-filters kids that were attempted but not fetched (deleted/dead), while
-/// keeping kids that were never attempted (beyond max_depth) so UI shows
+/// keeping kids that were never attempted (beyond `max_depth`) so UI shows
 /// they have replies even if we can't display them.
 pub fn build_comment_tree(
     mut items: HashMap<u64, HnItem>,

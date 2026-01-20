@@ -34,13 +34,13 @@ pub enum StorageError {
 impl std::fmt::Display for StorageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StorageError::Sqlite(e) => write!(f, "Database error: {}", e),
-            StorageError::Channel(msg) => write!(f, "Channel error: {}", msg),
-            StorageError::Migration { version, error } => {
-                write!(f, "Migration {} failed: {}", version, error)
+            Self::Sqlite(e) => write!(f, "Database error: {e}"),
+            Self::Channel(msg) => write!(f, "Channel error: {msg}"),
+            Self::Migration { version, error } => {
+                write!(f, "Migration {version} failed: {error}")
             }
-            StorageError::NoDbPathParent => write!(f, "db path did not have a parent dir"),
-            StorageError::IO(e) => write!(f, "io: {e}"),
+            Self::NoDbPathParent => write!(f, "db path did not have a parent dir"),
+            Self::IO(e) => write!(f, "io: {e}"),
         }
     }
 }
@@ -49,30 +49,30 @@ impl std::error::Error for StorageError {}
 
 impl From<rusqlite::Error> for StorageError {
     fn from(e: rusqlite::Error) -> Self {
-        StorageError::Sqlite(e)
+        Self::Sqlite(e)
     }
 }
 
 impl<T> From<mpsc::error::SendError<T>> for StorageError {
     fn from(e: mpsc::error::SendError<T>) -> Self {
-        StorageError::Channel(e.to_string())
+        Self::Channel(e.to_string())
     }
 }
 
 impl From<oneshot::error::RecvError> for StorageError {
     fn from(e: oneshot::error::RecvError) -> Self {
-        StorageError::Channel(e.to_string())
+        Self::Channel(e.to_string())
     }
 }
 
 impl StorageError {
     #[allow(dead_code)] // Used by future features
-    pub fn is_fatal(&self) -> bool {
-        matches!(self, StorageError::Migration { .. })
+    pub const fn is_fatal(&self) -> bool {
+        matches!(self, Self::Migration { .. })
     }
 }
 
-pub(crate) enum StorageCommand {
+pub enum StorageCommand {
     SaveStory {
         story: StorableStory,
         reply: oneshot::Sender<Result<StorableStory, StorageError>>,
@@ -196,7 +196,7 @@ impl Storage {
         rx.await?
     }
 
-    /// Returns fresh comments with their fetched_at timestamp.
+    /// Returns fresh comments with their `fetched_at` timestamp.
     /// Returns None if no comments exist or they're stale.
     pub async fn get_fresh_comments(
         &self,

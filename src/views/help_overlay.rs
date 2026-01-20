@@ -77,12 +77,12 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
             };
             // Pad the line to fill the content width for consistent background
             let key_span = Span::styled(
-                format!("{:>width$}", keys, width = key_width),
+                format!("{keys:>key_width$}"),
                 theme.dim_style().patch(base_style),
             );
             let spacer = Span::styled("  ", base_style);
             let label_span = Span::styled(
-                format!("{:<width$}", label, width = label_width),
+                format!("{label:<label_width$}"),
                 theme.story_title_style().patch(base_style),
             );
             Line::from(vec![key_span, spacer, label_span])
@@ -101,7 +101,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, popup_area);
 }
 
-fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
+const fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let x = area.x + (area.width.saturating_sub(width)) / 2;
     let y = area.y + (area.height.saturating_sub(height)) / 2;
     Rect::new(x, y, width, height)

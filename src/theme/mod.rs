@@ -45,10 +45,10 @@ pub enum ThemeColor {
 impl ThemeColor {
     pub fn to_color(&self) -> Color {
         match self {
-            ThemeColor::Named(name) => Self::parse_named(name),
-            ThemeColor::Hex(hex) => Self::parse_hex(hex),
-            ThemeColor::Rgb { r, g, b } => Color::Rgb(*r, *g, *b),
-            ThemeColor::Indexed(idx) => Color::Indexed(*idx),
+            Self::Named(name) => Self::parse_named(name),
+            Self::Hex(hex) => Self::parse_hex(hex),
+            Self::Rgb { r, g, b } => Color::Rgb(*r, *g, *b),
+            Self::Indexed(idx) => Color::Indexed(*idx),
         }
     }
 
@@ -141,7 +141,7 @@ pub struct ResolvedTheme {
     pub spinner: Color,
 }
 
-fn dim_amount() -> f32 {
+const fn dim_amount() -> f32 {
     0.7
 }
 
@@ -151,9 +151,9 @@ fn dim_color(color: Color) -> Color {
         Color::Rgb(r, g, b) => {
             // Reduce brightness by ~40%
             Color::Rgb(
-                (r as f32 * dim_amount()) as u8,
-                (g as f32 * dim_amount()) as u8,
-                (b as f32 * dim_amount()) as u8,
+                (f32::from(r) * dim_amount()) as u8,
+                (f32::from(g) * dim_amount()) as u8,
+                (f32::from(b) * dim_amount()) as u8,
             )
         }
         // For indexed/named colors, we can't easily compute a dimmed version.
@@ -165,7 +165,7 @@ fn dim_color(color: Color) -> Color {
 impl ResolvedTheme {
     /// Returns a copy of this theme with all colors dimmed for read stories.
     pub fn dimmed(&self) -> Self {
-        ResolvedTheme {
+        Self {
             name: self.name.clone(),
             variant: self.variant,
             foreground: dim_color(self.foreground),
@@ -268,7 +268,7 @@ impl ResolvedTheme {
 impl From<Theme> for ResolvedTheme {
     fn from(theme: Theme) -> Self {
         let c = theme.colors;
-        ResolvedTheme {
+        Self {
             name: theme.name,
             variant: theme.meta.variant,
             foreground: c.foreground.to_color(),
@@ -290,7 +290,7 @@ impl From<Theme> for ResolvedTheme {
             comment_depth_colors: c
                 .comment_depth_colors
                 .iter()
-                .map(|c| c.to_color())
+                .map(ThemeColor::to_color)
                 .collect(),
             status_bar_bg: c.status_bar_bg.to_color(),
             status_bar_fg: c.status_bar_fg.to_color(),

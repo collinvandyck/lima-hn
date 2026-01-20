@@ -32,7 +32,7 @@ pub struct AlgoliaItem {
     #[serde(rename = "type")]
     pub item_type: Option<String>,
     #[serde(default)]
-    pub children: Vec<AlgoliaItem>,
+    pub children: Vec<Self>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ pub struct Story {
 
 impl Story {
     pub fn from_item(item: HnItem) -> Option<Self> {
-        Some(Story {
+        Some(Self {
             id: item.id,
             title: item.title?,
             url: item.url,
@@ -65,11 +65,11 @@ impl Story {
         })
     }
 
-    pub fn is_read(&self) -> bool {
+    pub const fn is_read(&self) -> bool {
         self.read_at.is_some()
     }
 
-    pub fn is_favorited(&self) -> bool {
+    pub const fn is_favorited(&self) -> bool {
         self.favorited_at.is_some()
     }
 
@@ -114,7 +114,7 @@ impl Comment {
             return None;
         }
 
-        Some(Comment {
+        Some(Self {
             id: item.id,
             text: html_escape::decode_html_entities(&item.text?).to_string(),
             by: item.by.unwrap_or_else(|| "[deleted]".to_string()),
@@ -125,7 +125,7 @@ impl Comment {
         })
     }
 
-    pub fn is_favorited(&self) -> bool {
+    pub const fn is_favorited(&self) -> bool {
         self.favorited_at.is_some()
     }
 
@@ -148,39 +148,39 @@ pub enum Feed {
 }
 
 impl Feed {
-    pub fn endpoint(&self) -> Option<&'static str> {
+    pub const fn endpoint(&self) -> Option<&'static str> {
         match self {
-            Feed::Favorites => None,
-            Feed::Top => Some("topstories"),
-            Feed::New => Some("newstories"),
-            Feed::Best => Some("beststories"),
-            Feed::Ask => Some("askstories"),
-            Feed::Show => Some("showstories"),
-            Feed::Jobs => Some("jobstories"),
+            Self::Favorites => None,
+            Self::Top => Some("topstories"),
+            Self::New => Some("newstories"),
+            Self::Best => Some("beststories"),
+            Self::Ask => Some("askstories"),
+            Self::Show => Some("showstories"),
+            Self::Jobs => Some("jobstories"),
         }
     }
 
-    pub fn label(&self) -> &'static str {
+    pub const fn label(&self) -> &'static str {
         match self {
-            Feed::Favorites => "Favs",
-            Feed::Top => "Top",
-            Feed::New => "New",
-            Feed::Best => "Best",
-            Feed::Ask => "Ask",
-            Feed::Show => "Show",
-            Feed::Jobs => "Jobs",
+            Self::Favorites => "Favs",
+            Self::Top => "Top",
+            Self::New => "New",
+            Self::Best => "Best",
+            Self::Ask => "Ask",
+            Self::Show => "Show",
+            Self::Jobs => "Jobs",
         }
     }
 
-    pub fn all() -> &'static [Feed] {
+    pub const fn all() -> &'static [Self] {
         &[
-            Feed::Favorites,
-            Feed::Top,
-            Feed::New,
-            Feed::Best,
-            Feed::Ask,
-            Feed::Show,
-            Feed::Jobs,
+            Self::Favorites,
+            Self::Top,
+            Self::New,
+            Self::Best,
+            Self::Ask,
+            Self::Show,
+            Self::Jobs,
         ]
     }
 }
