@@ -140,11 +140,11 @@ fn comment_to_lines(
     has_more_at_depth: &[bool],
     clock: &Arc<dyn Clock>,
 ) -> Vec<Line<'static>> {
-    let color = theme.depth_color(comment.depth);
     let has_children = !comment.kids.is_empty();
     let show_children_connector = has_children && is_expanded;
+    let depth_color = |d| theme.depth_color(d);
 
-    let meta_line = build_meta_line(comment, is_expanded, has_more_at_depth, theme, clock, color);
+    let meta_line = build_meta_line(comment, is_expanded, has_more_at_depth, theme, clock);
     let text_lines = build_text_lines(
         &comment.text,
         comment.depth,
@@ -152,18 +152,17 @@ fn comment_to_lines(
         show_children_connector,
         max_width,
         theme,
-        color,
     );
-    let separator = build_empty_line_prefix(
+    let separator_spans = build_empty_line_prefix(
         comment.depth,
         has_more_at_depth,
         show_children_connector,
-        color,
+        depth_color,
     );
 
     let mut lines = vec![meta_line];
     lines.extend(text_lines);
-    lines.push(Line::from(vec![separator]));
+    lines.push(Line::from(separator_spans));
     lines
 }
 
@@ -173,10 +172,11 @@ fn build_meta_line(
     has_more_at_depth: &[bool],
     theme: &ResolvedTheme,
     clock: &Arc<dyn Clock>,
-    color: ratatui::style::Color,
 ) -> Line<'static> {
     let has_children = !comment.kids.is_empty();
-    let tree_prefix = build_meta_tree_prefix(comment.depth, has_more_at_depth, color);
+    let color = theme.depth_color(comment.depth);
+    let depth_color = |d| theme.depth_color(d);
+    let tree_prefix_spans = build_meta_tree_prefix(comment.depth, has_more_at_depth, depth_color);
 
     let expand_indicator = if has_children {
         if is_expanded {
@@ -188,19 +188,17 @@ fn build_meta_line(
         Span::styled("[ ] ", Style::default().fg(theme.foreground_dim))
     };
 
-    let mut spans = vec![
-        tree_prefix,
-        expand_indicator,
-        Span::styled(
-            comment.by.clone(),
-            Style::default().fg(color).add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(" · ", theme.dim_style()),
-        Span::styled(
-            format_relative(comment.time, clock.now()),
-            theme.dim_style(),
-        ),
-    ];
+    let mut spans = tree_prefix_spans;
+    spans.push(expand_indicator);
+    spans.push(Span::styled(
+        comment.by.clone(),
+        Style::default().fg(color).add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::styled(" · ", theme.dim_style()));
+    spans.push(Span::styled(
+        format_relative(comment.time, clock.now()),
+        theme.dim_style(),
+    ));
 
     if has_children {
         spans.push(Span::styled(" · ", theme.dim_style()));
@@ -227,17 +225,22 @@ fn build_text_lines(
     show_children_connector: bool,
     max_width: usize,
     theme: &ResolvedTheme,
-    color: ratatui::style::Color,
 ) -> Vec<Line<'static>> {
     let paragraphs = parse_comment_html(text);
-    let prefix = build_text_prefix(depth, has_more_at_depth, show_children_connector, color);
-    let prefix_width = prefix.content.width();
+    let depth_color = |d| theme.depth_color(d);
+    let prefix = build_text_prefix(
+        depth,
+        has_more_at_depth,
+        show_children_connector,
+        depth_color,
+    );
+    let prefix_width: usize = prefix.iter().map(|s| s.content.width()).sum();
     let available_width = max_width.saturating_sub(prefix_width).max(20);
     let mut lines = Vec::new();
     for (i, para) in paragraphs.iter().enumerate() {
         // Add blank line between paragraphs (except before first)
         if i > 0 {
-            lines.push(Line::from(vec![prefix.clone()]));
+            lines.push(Line::from(prefix.clone()));
         }
         let para_lines = render_paragraph(para, available_width, theme, &prefix);
         lines.extend(para_lines);
@@ -249,7 +252,7 @@ fn render_paragraph(
     para: &Paragraph,
     width: usize,
     theme: &ResolvedTheme,
-    prefix: &Span<'static>,
+    prefix: &[Span<'static>],
 ) -> Vec<Line<'static>> {
     if para.is_code_block {
         // Code blocks: render each line with code style, no wrapping
@@ -258,10 +261,9 @@ fn render_paragraph(
             .iter()
             .flat_map(|span| {
                 span.text.lines().map(|line| {
-                    Line::from(vec![
-                        prefix.clone(),
-                        Span::styled(line.to_string(), theme.comment_code_style()),
-                    ])
+                    let mut line_spans = prefix.to_vec();
+                    line_spans.push(Span::styled(line.to_string(), theme.comment_code_style()));
+                    Line::from(line_spans)
                 })
             })
             .collect();
@@ -306,7 +308,7 @@ fn wrap_styled_paragraph(
     spans: &[StyledSpan],
     width: usize,
     theme: &ResolvedTheme,
-    prefix: &Span<'static>,
+    prefix: &[Span<'static>],
     base_style: Style,
     quote_prefix: &str,
 ) -> Vec<Line<'static>> {
@@ -333,7 +335,7 @@ fn wrap_styled_paragraph(
         let line_len = wrapped_line.len();
         let line_end = char_offset + line_len;
         // Build spans for this wrapped line
-        let mut line_spans: Vec<Span<'static>> = vec![prefix.clone()];
+        let mut line_spans: Vec<Span<'static>> = prefix.to_vec();
         // Add quote prefix if applicable
         if !quote_prefix.is_empty() {
             line_spans.push(Span::styled(quote_prefix.to_string(), base_style));

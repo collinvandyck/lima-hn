@@ -38,97 +38,112 @@ pub fn compute_tree_context(comments: &[Comment], visible_indices: &[usize]) -> 
 
 /// Build the tree prefix for a comment's meta line (author, time).
 ///
-/// Returns a styled span with the appropriate tree characters:
+/// Returns styled spans with the appropriate tree characters:
 /// - `├─` if there are more siblings at this depth
 /// - `└─` if this is the last sibling at this depth
 /// - `│` for ancestor continuation
-pub fn build_meta_tree_prefix(
+///
+/// Each segment is colored according to its depth level.
+pub fn build_meta_tree_prefix<F>(
     depth: usize,
     has_more_at_depth: &[bool],
-    color: ratatui::style::Color,
-) -> Span<'static> {
+    depth_color: F,
+) -> Vec<Span<'static>>
+where
+    F: Fn(usize) -> ratatui::style::Color,
+{
     if depth == 0 {
-        return Span::raw("");
+        return vec![];
     }
-
-    let mut prefix = String::new();
-
+    let mut spans = Vec::with_capacity(depth);
     // Add ancestor continuation (│ or spaces) for depths 1 to depth-1
     for d in 1..depth {
-        if has_more_at_depth.get(d).copied().unwrap_or(false) {
-            prefix.push_str(" │  ");
+        let text = if has_more_at_depth.get(d).copied().unwrap_or(false) {
+            " │  "
         } else {
-            prefix.push_str("    ");
-        }
+            "    "
+        };
+        spans.push(Span::styled(text, Style::default().fg(depth_color(d))));
     }
-
     // Add connector for current depth
-    if has_more_at_depth.get(depth).copied().unwrap_or(false) {
-        prefix.push_str(" ├─ ");
+    let connector = if has_more_at_depth.get(depth).copied().unwrap_or(false) {
+        " ├─ "
     } else {
-        prefix.push_str(" └─ ");
-    }
-
-    Span::styled(prefix, Style::default().fg(color))
+        " └─ "
+    };
+    spans.push(Span::styled(
+        connector,
+        Style::default().fg(depth_color(depth)),
+    ));
+    spans
 }
 
 /// Build the tree prefix for comment text lines.
 ///
 /// Similar to meta prefix but extends one level deeper to show
 /// continuation for the comment's own children if expanded.
-pub fn build_text_prefix(
+///
+/// Each segment is colored according to its depth level.
+pub fn build_text_prefix<F>(
     depth: usize,
     has_more_at_depth: &[bool],
     has_children: bool,
-    color: ratatui::style::Color,
-) -> Span<'static> {
-    let mut prefix = String::new();
-
+    depth_color: F,
+) -> Vec<Span<'static>>
+where
+    F: Fn(usize) -> ratatui::style::Color,
+{
+    let mut spans = Vec::with_capacity(depth + 2);
     // Add ancestor continuation for depths 1 to depth
     for d in 1..=depth {
-        if has_more_at_depth.get(d).copied().unwrap_or(false) {
-            prefix.push_str(" │  ");
+        let text = if has_more_at_depth.get(d).copied().unwrap_or(false) {
+            " │  "
         } else {
-            prefix.push_str("    ");
-        }
+            "    "
+        };
+        spans.push(Span::styled(text, Style::default().fg(depth_color(d))));
     }
-
-    // Add own tree line if has visible children
-    if has_children {
-        prefix.push_str(" │  ");
-    } else {
-        prefix.push_str("    ");
-    }
-
-    Span::styled(prefix, Style::default().fg(color))
+    // Add own tree line if has visible children (colored as depth + 1)
+    let child_text = if has_children { " │  " } else { "    " };
+    spans.push(Span::styled(
+        child_text,
+        Style::default().fg(depth_color(depth + 1)),
+    ));
+    spans
 }
 
 /// Build the tree prefix for the empty line after a comment.
 ///
 /// Shows tree continuation lines but no connector.
-pub fn build_empty_line_prefix(
+///
+/// Each segment is colored according to its depth level.
+pub fn build_empty_line_prefix<F>(
     depth: usize,
     has_more_at_depth: &[bool],
     has_children: bool,
-    color: ratatui::style::Color,
-) -> Span<'static> {
-    let mut prefix = String::new();
-
+    depth_color: F,
+) -> Vec<Span<'static>>
+where
+    F: Fn(usize) -> ratatui::style::Color,
+{
+    let mut spans = Vec::with_capacity(depth + 2);
     // Add continuation markers for depths 1 to depth
     for d in 1..=depth {
-        if has_more_at_depth.get(d).copied().unwrap_or(false) {
-            prefix.push_str(" │  ");
+        let text = if has_more_at_depth.get(d).copied().unwrap_or(false) {
+            " │  "
         } else {
-            prefix.push_str("    ");
-        }
+            "    "
+        };
+        spans.push(Span::styled(text, Style::default().fg(depth_color(d))));
     }
-
-    // Add own tree line if has visible children
+    // Add own tree line if has visible children (colored as depth + 1)
     if has_children {
-        prefix.push_str(" │");
+        spans.push(Span::styled(
+            " │",
+            Style::default().fg(depth_color(depth + 1)),
+        ));
     }
-
-    Span::styled(prefix, Style::default().fg(color))
+    spans
 }
 
 #[cfg(test)]
@@ -174,33 +189,41 @@ mod tests {
         assert_eq!(context[2], vec![false]); // Last at depth 0
     }
 
+    fn white(_: usize) -> ratatui::style::Color {
+        ratatui::style::Color::White
+    }
+
+    fn spans_to_string(spans: &[Span]) -> String {
+        spans.iter().map(|s| s.content.as_ref()).collect()
+    }
+
     #[test]
     fn test_build_meta_tree_prefix_root() {
-        let prefix = build_meta_tree_prefix(0, &[false], ratatui::style::Color::White);
-        assert_eq!(prefix.content, "");
+        let spans = build_meta_tree_prefix(0, &[false], white);
+        assert!(spans.is_empty());
     }
 
     #[test]
     fn test_build_meta_tree_prefix_with_sibling() {
-        let prefix = build_meta_tree_prefix(1, &[false, true], ratatui::style::Color::White);
-        assert_eq!(prefix.content, " ├─ ");
+        let spans = build_meta_tree_prefix(1, &[false, true], white);
+        assert_eq!(spans_to_string(&spans), " ├─ ");
     }
 
     #[test]
     fn test_build_meta_tree_prefix_last_sibling() {
-        let prefix = build_meta_tree_prefix(1, &[false, false], ratatui::style::Color::White);
-        assert_eq!(prefix.content, " └─ ");
+        let spans = build_meta_tree_prefix(1, &[false, false], white);
+        assert_eq!(spans_to_string(&spans), " └─ ");
     }
 
     #[test]
     fn test_build_text_prefix_with_children() {
-        let prefix = build_text_prefix(0, &[false], true, ratatui::style::Color::White);
-        assert_eq!(prefix.content, " │  ");
+        let spans = build_text_prefix(0, &[false], true, white);
+        assert_eq!(spans_to_string(&spans), " │  ");
     }
 
     #[test]
     fn test_build_text_prefix_no_children() {
-        let prefix = build_text_prefix(0, &[false], false, ratatui::style::Color::White);
-        assert_eq!(prefix.content, "    ");
+        let spans = build_text_prefix(0, &[false], false, white);
+        assert_eq!(spans_to_string(&spans), "    ");
     }
 }
