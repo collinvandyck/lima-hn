@@ -141,7 +141,7 @@ pub struct ResolvedTheme {
 }
 
 const fn dim_amount() -> f32 {
-    0.7
+    0.675
 }
 
 /// Dims a color by reducing its brightness.
