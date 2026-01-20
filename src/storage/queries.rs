@@ -21,6 +21,23 @@ fn json_to_kids(json: &str) -> Vec<u64> {
     serde_json::from_str(json).unwrap_or_default()
 }
 
+fn story_from_row(row: &rusqlite::Row) -> rusqlite::Result<StorableStory> {
+    let kids_json: String = row.get(7)?;
+    Ok(StorableStory {
+        id: row.get::<_, i64>(0)? as u64,
+        title: row.get(1)?,
+        url: row.get(2)?,
+        score: row.get::<_, i64>(3)? as u32,
+        by: row.get(4)?,
+        time: row.get::<_, i64>(5)? as u64,
+        descendants: row.get::<_, i64>(6)? as u32,
+        kids: json_to_kids(&kids_json),
+        fetched_at: row.get::<_, i64>(8)? as u64,
+        read_at: row.get::<_, Option<i64>>(9)?.map(|t| t as u64),
+        favorited_at: row.get::<_, Option<i64>>(10)?.map(|t| t as u64),
+    })
+}
+
 pub fn save_story(conn: &Connection, story: &StorableStory) -> Result<StorableStory, StorageError> {
     // Use INSERT ... ON CONFLICT to preserve read_at and favorited_at, returning the saved row
     let mut stmt = conn.prepare(
@@ -53,22 +70,7 @@ pub fn save_story(conn: &Connection, story: &StorableStory) -> Result<StorableSt
             story.read_at.map(|t| t as i64),
             story.favorited_at.map(|t| t as i64),
         ],
-        |row| {
-            let kids_json: String = row.get(7)?;
-            Ok(StorableStory {
-                id: row.get::<_, i64>(0)? as u64,
-                title: row.get(1)?,
-                url: row.get(2)?,
-                score: row.get::<_, i64>(3)? as u32,
-                by: row.get(4)?,
-                time: row.get::<_, i64>(5)? as u64,
-                descendants: row.get::<_, i64>(6)? as u32,
-                kids: json_to_kids(&kids_json),
-                fetched_at: row.get::<_, i64>(8)? as u64,
-                read_at: row.get::<_, Option<i64>>(9)?.map(|t| t as u64),
-                favorited_at: row.get::<_, Option<i64>>(10)?.map(|t| t as u64),
-            })
-        },
+        story_from_row,
     )?;
     Ok(saved)
 }
@@ -79,22 +81,7 @@ pub fn get_story(conn: &Connection, id: u64) -> Result<Option<StorableStory>, St
          FROM stories WHERE id = ?1",
     )?;
 
-    let result = stmt.query_row(params![id as i64], |row| {
-        let kids_json: String = row.get(7)?;
-        Ok(StorableStory {
-            id: row.get::<_, i64>(0)? as u64,
-            title: row.get(1)?,
-            url: row.get(2)?,
-            score: row.get::<_, i64>(3)? as u32,
-            by: row.get(4)?,
-            time: row.get::<_, i64>(5)? as u64,
-            descendants: row.get::<_, i64>(6)? as u32,
-            kids: json_to_kids(&kids_json),
-            fetched_at: row.get::<_, i64>(8)? as u64,
-            read_at: row.get::<_, Option<i64>>(9)?.map(|t| t as u64),
-            favorited_at: row.get::<_, Option<i64>>(10)?.map(|t| t as u64),
-        })
-    });
+    let result = stmt.query_row(params![id as i64], story_from_row);
 
     match result {
         Ok(story) => Ok(Some(story)),
@@ -347,22 +334,7 @@ pub fn get_favorited_stories(conn: &Connection) -> Result<Vec<StorableStory>, St
         "SELECT id, title, url, score, by, time, descendants, kids, fetched_at, read_at, favorited_at
          FROM stories WHERE favorited_at IS NOT NULL ORDER BY favorited_at DESC",
     )?;
-    let rows = stmt.query_map([], |row| {
-        let kids_json: String = row.get(7)?;
-        Ok(StorableStory {
-            id: row.get::<_, i64>(0)? as u64,
-            title: row.get(1)?,
-            url: row.get(2)?,
-            score: row.get::<_, i64>(3)? as u32,
-            by: row.get(4)?,
-            time: row.get::<_, i64>(5)? as u64,
-            descendants: row.get::<_, i64>(6)? as u32,
-            kids: json_to_kids(&kids_json),
-            fetched_at: row.get::<_, i64>(8)? as u64,
-            read_at: row.get::<_, Option<i64>>(9)?.map(|t| t as u64),
-            favorited_at: row.get::<_, Option<i64>>(10)?.map(|t| t as u64),
-        })
-    })?;
+    let rows = stmt.query_map([], story_from_row)?;
     let mut stories = Vec::new();
     for row in rows {
         stories.push(row?);
