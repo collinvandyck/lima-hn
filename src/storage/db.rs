@@ -53,6 +53,15 @@ pub fn run_worker(conn: Connection, mut cmd_rx: mpsc::Receiver<StorageCommand>) 
                 let result = queries::get_favorited_stories(&conn);
                 let _ = reply.send(result);
             }
+            StorageCommand::GetFavoritedStoriesSorted { sort, reply } => {
+                let result = queries::get_favorited_stories_sorted(&conn, sort);
+                let _ = reply.send(result);
+            }
+            StorageCommand::GetFeedStoriesSorted { feed, sort, reply } => {
+                let result = queries::get_feed_stories_sorted(&conn, feed, sort)
+                    .map(|opt| opt.map(|r| (r.stories, r.fetched_at)));
+                let _ = reply.send(result);
+            }
         }
     }
 }

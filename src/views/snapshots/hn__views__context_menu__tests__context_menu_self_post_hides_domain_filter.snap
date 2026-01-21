@@ -1,0 +1,18 @@
+---
+source: src/views/context_menu.rs
+expression: output
+---
+
+
+
+
+
+
+
+
+
+                      ┌Actions──────────────────────────┐
+                      │> go to user profile             │
+                      │  filter by this user            │
+                      └─────────────────────────────────┘
+                      j/k:select  Enter:confirm  Esc:canc

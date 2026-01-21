@@ -229,13 +229,18 @@ fn render(app: &App, frame: &mut Frame) {
         views::debug::render(frame, app, debug_area);
     }
 
+    // Render context menu overlay if open (highest priority)
+    if app.context_menu.is_some() {
+        views::context_menu::render(frame, app, area);
+    }
+
     // Render theme picker overlay if open
-    if app.theme_picker.is_some() {
+    if app.theme_picker.is_some() && app.context_menu.is_none() {
         views::theme_picker::render(frame, app, area);
     }
 
-    // Render help overlay if open (but not if theme picker is open)
-    if app.help_overlay && app.theme_picker.is_none() {
+    // Render help overlay if open (but not if theme picker or context menu is open)
+    if app.help_overlay && app.theme_picker.is_none() && app.context_menu.is_none() {
         views::help_overlay::render(frame, app, area);
     }
 }

@@ -11,7 +11,7 @@ use crate::api::Feed;
 use crate::time::now_unix;
 
 use super::StorageError;
-use super::types::{CachedFeed, StorableComment, StorableStory};
+use super::types::{CachedFeed, StorableComment, StorableStory, StorySort};
 
 fn kids_to_json(kids: &[u64]) -> String {
     serde_json::to_string(kids).unwrap_or_else(|_| "[]".to_string())
@@ -328,16 +328,85 @@ pub fn toggle_comment_favorite(conn: &Connection, id: u64) -> Result<Option<u64>
     }
 }
 
-/// Get all favorited stories, ordered by most recently favorited first.
-pub fn get_favorited_stories(conn: &Connection) -> Result<Vec<StorableStory>, StorageError> {
-    let mut stmt = conn.prepare(
+/// Get all favorited stories with optional sorting.
+pub fn get_favorited_stories_sorted(
+    conn: &Connection,
+    sort: StorySort,
+) -> Result<Vec<StorableStory>, StorageError> {
+    let order_clause = match sort {
+        StorySort::Position => "favorited_at DESC", // Default: most recently favorited first
+        StorySort::ScoreDesc => "score DESC, favorited_at DESC",
+        StorySort::CommentsDesc => "descendants DESC, favorited_at DESC",
+        StorySort::TimeDesc => "time DESC, favorited_at DESC",
+    };
+    let sql = format!(
         "SELECT id, title, url, score, by, time, descendants, kids, fetched_at, read_at, favorited_at
-         FROM stories WHERE favorited_at IS NOT NULL ORDER BY favorited_at DESC",
-    )?;
+         FROM stories WHERE favorited_at IS NOT NULL ORDER BY {order_clause}"
+    );
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], story_from_row)?;
     let mut stories = Vec::new();
     for row in rows {
         stories.push(row?);
     }
     Ok(stories)
+}
+
+/// Get all favorited stories, ordered by most recently favorited first.
+pub fn get_favorited_stories(conn: &Connection) -> Result<Vec<StorableStory>, StorageError> {
+    get_favorited_stories_sorted(conn, StorySort::Position)
+}
+
+/// Result from [`get_feed_stories_sorted`].
+pub struct SortedFeedResult {
+    pub stories: Vec<StorableStory>,
+    pub fetched_at: u64,
+}
+
+/// Get stories for a feed with sorting applied at the DB level.
+pub fn get_feed_stories_sorted(
+    conn: &Connection,
+    feed: Feed,
+    sort: StorySort,
+) -> Result<Option<SortedFeedResult>, StorageError> {
+    let feed_type = feed_type_str(feed);
+    // Get feed metadata
+    let row: Option<(i64, i64)> = conn
+        .query_row(
+            "SELECT id, fetched_at FROM feeds WHERE feed_type = ?1",
+            params![feed_type],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok();
+    let Some((feed_id, fetched_at)) = row else {
+        return Ok(None);
+    };
+    // Build ORDER BY clause based on sort
+    let order_clause = match sort {
+        StorySort::Position => "fs.position ASC",
+        StorySort::ScoreDesc => "s.score DESC, fs.position ASC",
+        StorySort::CommentsDesc => "s.descendants DESC, fs.position ASC",
+        StorySort::TimeDesc => "s.time DESC, fs.position ASC",
+    };
+    let sql = format!(
+        "SELECT s.id, s.title, s.url, s.score, s.by, s.time, s.descendants, s.kids,
+                s.fetched_at, s.read_at, s.favorited_at
+         FROM feed_stories fs
+         JOIN stories s ON fs.story_id = s.id
+         WHERE fs.feed_id = ?1
+         ORDER BY {order_clause}"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![feed_id], story_from_row)?;
+    let mut stories = Vec::new();
+    for row in rows {
+        stories.push(row?);
+    }
+    if stories.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(SortedFeedResult {
+        stories,
+        fetched_at: fetched_at as u64,
+    }))
 }

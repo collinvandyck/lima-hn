@@ -25,4 +25,4 @@ expression: output
 
 
 ────────────────────────────────────────────────────────────────────────────────
- Top  1/5 | H/L:feeds  f:fav  ?:help  q:quit
+ Top  1/5 | H/L:feeds  f:fav  s:sort  ?:help  q:quit

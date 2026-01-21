@@ -1,5 +1,6 @@
 pub mod comments;
 pub mod common;
+pub mod context_menu;
 pub mod debug;
 pub mod help_overlay;
 pub mod html;

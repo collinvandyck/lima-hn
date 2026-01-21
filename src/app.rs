@@ -6,6 +6,27 @@ use std::time::Instant;
 use tokio::sync::mpsc;
 
 use crate::api::{ApiError, Comment, Feed, HnClient, Story};
+pub use crate::storage::StorySort;
+
+impl StorySort {
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Position => Self::ScoreDesc,
+            Self::ScoreDesc => Self::CommentsDesc,
+            Self::CommentsDesc => Self::TimeDesc,
+            Self::TimeDesc => Self::Position,
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Position => "api",
+            Self::ScoreDesc => "score",
+            Self::CommentsDesc => "comments",
+            Self::TimeDesc => "time",
+        }
+    }
+}
 use crate::comment_tree::CommentTree;
 use crate::settings::{self, Settings};
 use crate::storage::Storage;
@@ -26,10 +47,17 @@ pub struct CommentsResult {
     pub fetched_at: Option<u64>,
 }
 
+pub struct SortedStoriesResult {
+    pub result: Result<Vec<Story>, ApiError>,
+    pub fetched_at: Option<u64>,
+    pub sort: StorySort,
+}
+
 pub enum AsyncResult {
     Stories(StoriesResult),
     MoreStories(StoriesResult),
     Comments(CommentsResult),
+    SortedStories(SortedStoriesResult),
 }
 
 #[derive(Debug)]
@@ -156,6 +184,31 @@ pub struct ThemePicker {
     pub original: ResolvedTheme,
 }
 
+/// Item in the context menu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContextMenuItem {
+    GoToUserProfile,
+    FilterByUser,
+    FilterByDomain,
+}
+
+impl ContextMenuItem {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::GoToUserProfile => "go to user profile",
+            Self::FilterByUser => "filter by this user",
+            Self::FilterByDomain => "filter by this domain",
+        }
+    }
+}
+
+/// State for the context menu popup.
+pub struct ContextMenu {
+    pub items: Vec<ContextMenuItem>,
+    pub selected: usize,
+    pub story: Story,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
     SelectNext,
@@ -196,6 +249,14 @@ pub enum Message {
     // Favorites
     ToggleFavorite,
     ToggleStoryFavorite,
+    // Sorting
+    CycleSortOrder,
+    // Context menu
+    OpenContextMenu,
+    CloseContextMenu,
+    ContextMenuUp,
+    ContextMenuDown,
+    ConfirmContextMenu,
 }
 
 pub struct App {
@@ -228,6 +289,10 @@ pub struct App {
     // Timestamps for when data was last fetched
     pub stories_fetched_at: Option<u64>,
     pub comments_fetched_at: Option<u64>,
+    // Sorting state
+    pub story_sort: StorySort,
+    // Context menu popup
+    pub context_menu: Option<ContextMenu>,
 }
 
 impl App {
@@ -257,6 +322,8 @@ impl App {
             flash_message: None,
             stories_fetched_at: None,
             comments_fetched_at: None,
+            story_sort: StorySort::default(),
+            context_menu: None,
         }
     }
 
@@ -265,6 +332,7 @@ impl App {
             AsyncResult::Stories(r) => self.handle_stories_result(r),
             AsyncResult::MoreStories(r) => self.handle_more_stories_result(r),
             AsyncResult::Comments(r) => self.handle_comments_result(r),
+            AsyncResult::SortedStories(r) => self.handle_sorted_stories_result(r),
         }
     }
 
@@ -288,6 +356,10 @@ impl App {
                 self.load.set_loading(false);
                 self.selected_index = 0;
                 self.scroll_offset = 0;
+                // Re-apply sort if user had sorted before refresh
+                if self.story_sort != StorySort::Position {
+                    self.spawn_sorted_stories_fetch();
+                }
                 if self.should_fill_viewport() {
                     self.load_more();
                 }
@@ -322,6 +394,10 @@ impl App {
                 } else {
                     self.stories.extend(stories);
                     self.load.current_page += 1;
+                    // Re-apply sort from DB if active
+                    if self.story_sort != StorySort::Position {
+                        self.spawn_sorted_stories_fetch();
+                    }
                 }
                 self.load.loading_more = false;
                 if self.should_fill_viewport() {
@@ -365,6 +441,19 @@ impl App {
                 if e.is_fatal() {
                     self.should_quit = true;
                 }
+            }
+        }
+    }
+
+    fn handle_sorted_stories_result(&mut self, r: SortedStoriesResult) {
+        // Only apply if sort hasn't changed since request was made
+        if r.sort != self.story_sort {
+            return;
+        }
+        if let Ok(stories) = r.result {
+            self.stories = stories;
+            if let Some(fetched_at) = r.fetched_at {
+                self.stories_fetched_at = Some(fetched_at);
             }
         }
     }
@@ -430,7 +519,87 @@ impl App {
             Message::CopyStoryUrl => self.copy_story_url(),
             Message::ToggleFavorite => self.toggle_favorite(),
             Message::ToggleStoryFavorite => self.toggle_story_favorite(),
+            Message::CycleSortOrder => self.cycle_sort_order(),
+            Message::OpenContextMenu => self.open_context_menu(),
+            Message::CloseContextMenu => self.close_context_menu(),
+            Message::ContextMenuUp => self.context_menu_up(),
+            Message::ContextMenuDown => self.context_menu_down(),
+            Message::ConfirmContextMenu => self.confirm_context_menu(),
         }
+    }
+
+    fn open_context_menu(&mut self) {
+        if !matches!(self.view, View::Stories) {
+            return;
+        }
+        let Some(story) = self.stories.get(self.selected_index).cloned() else {
+            return;
+        };
+        let mut items = vec![
+            ContextMenuItem::GoToUserProfile,
+            ContextMenuItem::FilterByUser,
+        ];
+        if story.domain() != "self" {
+            items.push(ContextMenuItem::FilterByDomain);
+        }
+        self.context_menu = Some(ContextMenu {
+            items,
+            selected: 0,
+            story,
+        });
+    }
+
+    fn close_context_menu(&mut self) {
+        self.context_menu = None;
+    }
+
+    #[allow(clippy::missing_const_for_fn)]
+    fn context_menu_up(&mut self) {
+        if let Some(menu) = &mut self.context_menu
+            && menu.selected > 0
+        {
+            menu.selected -= 1;
+        }
+    }
+
+    #[allow(clippy::missing_const_for_fn)]
+    fn context_menu_down(&mut self) {
+        if let Some(menu) = &mut self.context_menu
+            && menu.selected < menu.items.len() - 1
+        {
+            menu.selected += 1;
+        }
+    }
+
+    fn confirm_context_menu(&mut self) {
+        let Some(menu) = self.context_menu.take() else {
+            return;
+        };
+        let item = menu.items[menu.selected];
+        match item {
+            ContextMenuItem::GoToUserProfile => {
+                // TODO: Navigate to user profile view (Phase 4)
+                self.flash(&format!("user profile for {} (coming soon)", menu.story.by));
+            }
+            ContextMenuItem::FilterByUser => {
+                // TODO: Filter by user (Phase 3)
+                self.flash(&format!("filter by @{} (coming soon)", menu.story.by));
+            }
+            ContextMenuItem::FilterByDomain => {
+                // TODO: Filter by domain (Phase 3)
+                self.flash(&format!("filter by {} (coming soon)", menu.story.domain()));
+            }
+        }
+    }
+
+    fn cycle_sort_order(&mut self) {
+        if !matches!(self.view, View::Stories) || self.stories.is_empty() {
+            return;
+        }
+        self.story_sort = self.story_sort.next();
+        self.spawn_sorted_stories_fetch();
+        self.selected_index = 0;
+        self.scroll_offset = 0;
     }
 
     fn open_theme_picker(&mut self) {
@@ -820,6 +989,7 @@ impl App {
         self.load.current_page = 0;
         self.load.has_more = self.feed != Feed::Favorites; // Favorites don't paginate
         self.load.loading_more = false;
+        self.story_sort = StorySort::default();
         if self.feed == Feed::Favorites {
             self.spawn_favorites_fetch();
         } else {
@@ -974,6 +1144,41 @@ impl App {
         let storage = self.client.storage().clone();
         tokio::spawn(async move {
             let _ = storage.mark_story_read(id).await;
+        });
+    }
+
+    fn spawn_sorted_stories_fetch(&self) {
+        let storage = self.client.storage().clone();
+        let tx = self.result_tx.clone();
+        let feed = self.feed;
+        let sort = self.story_sort;
+        tokio::spawn(async move {
+            let (result, fetched_at) = if feed == Feed::Favorites {
+                // Favorites use a different query (no feed_stories join)
+                match storage.get_favorited_stories_sorted(sort).await {
+                    Ok(stories) => {
+                        let stories: Vec<Story> = stories.into_iter().map(Into::into).collect();
+                        (Ok(stories), None)
+                    }
+                    Err(e) => (Err(e.into()), None),
+                }
+            } else {
+                match storage.get_feed_stories_sorted(feed, sort).await {
+                    Ok(Some((stories, fetched_at))) => {
+                        let stories: Vec<Story> = stories.into_iter().map(Into::into).collect();
+                        (Ok(stories), Some(fetched_at))
+                    }
+                    Ok(None) => (Ok(Vec::new()), None),
+                    Err(e) => (Err(e.into()), None),
+                }
+            };
+            let _ = tx
+                .send(AsyncResult::SortedStories(SortedStoriesResult {
+                    result,
+                    fetched_at,
+                    sort,
+                }))
+                .await;
         });
     }
 
@@ -1291,5 +1496,120 @@ mod tests {
         assert!(app.load.loading_more);
         app.load_stories();
         assert!(!app.load.loading_more);
+    }
+
+    #[test]
+    fn story_sort_cycles_through_all_options() {
+        assert_eq!(StorySort::Position.next(), StorySort::ScoreDesc);
+        assert_eq!(StorySort::ScoreDesc.next(), StorySort::CommentsDesc);
+        assert_eq!(StorySort::CommentsDesc.next(), StorySort::TimeDesc);
+        assert_eq!(StorySort::TimeDesc.next(), StorySort::Position);
+    }
+
+    #[test]
+    fn story_sort_labels() {
+        assert_eq!(StorySort::Position.label(), "api");
+        assert_eq!(StorySort::ScoreDesc.label(), "score");
+        assert_eq!(StorySort::CommentsDesc.label(), "comments");
+        assert_eq!(StorySort::TimeDesc.label(), "time");
+    }
+
+    #[tokio::test]
+    async fn cycle_sort_order_updates_sort_state() {
+        let stories = vec![
+            StoryBuilder::new().id(1).score(50).build(),
+            StoryBuilder::new().id(2).score(200).build(),
+        ];
+        let mut app = TestAppBuilder::new().with_stories(stories).build();
+        assert_eq!(app.story_sort, StorySort::Position);
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::ScoreDesc);
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::CommentsDesc);
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::TimeDesc);
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::Position);
+    }
+
+    #[tokio::test]
+    async fn load_stories_resets_sort_order() {
+        let stories = vec![
+            StoryBuilder::new().id(1).score(50).build(),
+            StoryBuilder::new().id(2).score(200).build(),
+        ];
+        let mut app = TestAppBuilder::new().with_stories(stories).build();
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::ScoreDesc);
+        app.load_stories();
+        assert_eq!(app.story_sort, StorySort::Position);
+    }
+
+    #[test]
+    fn cycle_sort_does_nothing_on_empty_stories() {
+        let mut app = TestAppBuilder::new().build();
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::Position);
+    }
+
+    #[test]
+    fn cycle_sort_does_nothing_in_comments_view() {
+        let stories = vec![StoryBuilder::new().id(1).score(100).build()];
+        let mut app = TestAppBuilder::new()
+            .with_stories(stories)
+            .view(View::Comments {
+                story_id: 1,
+                story_title: "Test".to_string(),
+                story_index: 0,
+                story_scroll: 0,
+            })
+            .build();
+        app.update(Message::CycleSortOrder);
+        assert_eq!(app.story_sort, StorySort::Position);
+    }
+
+    #[tokio::test]
+    async fn sorted_stories_result_updates_stories() {
+        let stories = vec![
+            StoryBuilder::new().id(1).score(50).build(),
+            StoryBuilder::new().id(2).score(200).build(),
+        ];
+        let mut app = TestAppBuilder::new().with_stories(stories).build();
+        app.story_sort = StorySort::ScoreDesc;
+        // Simulate sorted result from DB (already sorted by score)
+        let sorted_stories = vec![
+            StoryBuilder::new().id(2).score(200).build(), // 200 points first
+            StoryBuilder::new().id(1).score(50).build(),  // 50 points second
+        ];
+        app.handle_async_result(AsyncResult::SortedStories(SortedStoriesResult {
+            result: Ok(sorted_stories),
+            fetched_at: Some(1700000000),
+            sort: StorySort::ScoreDesc,
+        }));
+        assert_eq!(app.stories[0].id, 2);
+        assert_eq!(app.stories[1].id, 1);
+    }
+
+    #[tokio::test]
+    async fn sorted_stories_result_ignored_if_sort_changed() {
+        let stories = vec![
+            StoryBuilder::new().id(1).score(50).build(),
+            StoryBuilder::new().id(2).score(200).build(),
+        ];
+        let mut app = TestAppBuilder::new().with_stories(stories).build();
+        // Current sort is Position, but result is for ScoreDesc
+        app.story_sort = StorySort::Position;
+        let sorted_stories = vec![
+            StoryBuilder::new().id(2).score(200).build(),
+            StoryBuilder::new().id(1).score(50).build(),
+        ];
+        app.handle_async_result(AsyncResult::SortedStories(SortedStoriesResult {
+            result: Ok(sorted_stories),
+            fetched_at: Some(1700000000),
+            sort: StorySort::ScoreDesc, // Different from current sort
+        }));
+        // Stories should remain unchanged (result was for old sort)
+        assert_eq!(app.stories[0].id, 1);
+        assert_eq!(app.stories[1].id, 2);
     }
 }

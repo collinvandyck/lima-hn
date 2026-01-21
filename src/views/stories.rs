@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::api::{Feed, Story};
-use crate::app::App;
+use crate::app::{App, StorySort};
 use crate::help::stories_help;
 use crate::keys::{global_keymap, stories_keymap};
 
@@ -213,8 +213,13 @@ fn story_to_list_item(
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let keymap = global_keymap().extend(stories_keymap());
     let help_text = stories_help().format(&keymap, false);
+    let label = if app.story_sort == StorySort::Position {
+        app.feed.label().to_string()
+    } else {
+        format!("{} [{}]", app.feed.label(), app.story_sort.label())
+    };
     StatusBar::new(&app.theme)
-        .label(app.feed.label())
+        .label(&label)
         .position(app.selected_index + 1, app.stories.len())
         .help(&help_text)
         .flash(app.flash_text())

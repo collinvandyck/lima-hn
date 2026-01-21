@@ -3,6 +3,16 @@ use std::time::Duration;
 use crate::api::{Comment, Feed, Story};
 use crate::time::now_unix;
 
+/// Sort order for stories, used by the storage layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StorySort {
+    #[default]
+    Position,
+    ScoreDesc,
+    CommentsDesc,
+    TimeDesc,
+}
+
 #[derive(Debug, Clone)]
 pub struct StorableStory {
     pub id: u64,

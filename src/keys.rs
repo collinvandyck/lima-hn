@@ -117,6 +117,23 @@ fn help_overlay_keymap() -> Keymap {
         .bind_ctrl(KeyCode::Char('c'), Message::ToggleHelp)
 }
 
+/// Keybindings for the context menu popup.
+pub fn context_menu_keymap() -> Keymap {
+    Keymap::new()
+        .bind(KeyCode::Char('j'), Message::ContextMenuDown)
+        .bind(KeyCode::Down, Message::ContextMenuDown)
+        .bind_ctrl(KeyCode::Char('n'), Message::ContextMenuDown)
+        .bind(KeyCode::Char('k'), Message::ContextMenuUp)
+        .bind(KeyCode::Up, Message::ContextMenuUp)
+        .bind_ctrl(KeyCode::Char('p'), Message::ContextMenuUp)
+        .bind(KeyCode::Enter, Message::ConfirmContextMenu)
+        .bind(KeyCode::Char('l'), Message::ConfirmContextMenu)
+        .bind(KeyCode::Esc, Message::CloseContextMenu)
+        .bind(KeyCode::Char('q'), Message::CloseContextMenu)
+        .bind(KeyCode::Char('h'), Message::CloseContextMenu)
+        .bind_ctrl(KeyCode::Char('c'), Message::CloseContextMenu)
+}
+
 /// Navigation keybindings shared between stories and comments views.
 fn navigation_keymap() -> Keymap {
     Keymap::new()
@@ -142,6 +159,8 @@ pub fn stories_keymap() -> Keymap {
         .bind(KeyCode::Enter, Message::OpenComments)
         .bind(KeyCode::Char('O'), Message::OpenHnPage)
         .bind(KeyCode::Char('f'), Message::ToggleFavorite)
+        .bind(KeyCode::Char('s'), Message::CycleSortOrder)
+        .bind(KeyCode::Char(','), Message::OpenContextMenu)
         .bind(KeyCode::Char('H'), Message::PrevFeed)
         .bind(KeyCode::Char('L'), Message::NextFeed)
         .bind(KeyCode::Char('1'), Message::SwitchFeed(Feed::Favorites))
@@ -173,6 +192,11 @@ pub fn comments_keymap() -> Keymap {
 }
 
 pub fn handle_key(key: KeyEvent, app: &App) -> Option<Message> {
+    // Context menu takes highest priority when open
+    if app.context_menu.is_some() {
+        return context_menu_keymap().get(&key);
+    }
+
     // Theme picker takes priority when open
     if app.theme_picker.is_some() {
         return theme_picker_keymap().get(&key);

@@ -15,6 +15,7 @@ expression: output
                             │   O  open on hn      │
                             │   y  copy url        │
                             │   f  favorite        │
+                            │   s  sort            │
                             │   r  refresh         │
                             │   t  themes          │
                             │   `  debug           │

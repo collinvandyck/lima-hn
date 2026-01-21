@@ -400,6 +400,8 @@ impl TestAppBuilder {
             flash_message: None,
             stories_fetched_at: self.stories_fetched_at,
             comments_fetched_at: self.comments_fetched_at,
+            story_sort: crate::app::StorySort::default(),
+            context_menu: None,
         }
     }
 }

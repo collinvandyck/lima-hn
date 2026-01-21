@@ -92,9 +92,9 @@ impl HelpConfig {
 /// Help configuration for the stories view.
 pub fn stories_help() -> HelpConfig {
     use Message::{
-        CopyUrl, NextFeed, OpenComments, OpenHnPage, OpenThemePicker, OpenUrl, PrevFeed, Quit,
-        Refresh, SelectFirst, SelectLast, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite,
-        ToggleHelp,
+        CopyUrl, CycleSortOrder, NextFeed, OpenComments, OpenHnPage, OpenThemePicker, OpenUrl,
+        PrevFeed, Quit, Refresh, SelectFirst, SelectLast, SelectNext, SelectPrev, ToggleDebug,
+        ToggleFavorite, ToggleHelp,
     };
     HelpConfig {
         expanded: vec![
@@ -106,6 +106,7 @@ pub fn stories_help() -> HelpConfig {
             HelpItem::new(CopyUrl, "copy"),
             HelpItem::new(OpenComments, "comments"),
             HelpItem::new(ToggleFavorite, "fav"),
+            HelpItem::new(CycleSortOrder, "sort"),
             HelpItem::new(Refresh, "refresh"),
             HelpItem::new(OpenThemePicker, "themes"),
             HelpItem::new(ToggleDebug, "debug"),
@@ -115,6 +116,7 @@ pub fn stories_help() -> HelpConfig {
         compact: vec![
             HelpItem::pair(PrevFeed, NextFeed, "feeds"),
             HelpItem::new(ToggleFavorite, "fav"),
+            HelpItem::new(CycleSortOrder, "sort"),
             HelpItem::new(ToggleHelp, "help"),
             HelpItem::new(Quit, "quit"),
         ],
@@ -178,12 +180,29 @@ pub fn theme_picker_help() -> HelpConfig {
     }
 }
 
+/// Help configuration for the context menu.
+pub fn context_menu_help() -> HelpConfig {
+    use Message::{CloseContextMenu, ConfirmContextMenu, ContextMenuDown, ContextMenuUp};
+    HelpConfig {
+        expanded: vec![
+            HelpItem::pair(ContextMenuDown, ContextMenuUp, "select"),
+            HelpItem::new(ConfirmContextMenu, "confirm"),
+            HelpItem::new(CloseContextMenu, "cancel"),
+        ],
+        compact: vec![
+            HelpItem::pair(ContextMenuDown, ContextMenuUp, "select"),
+            HelpItem::new(ConfirmContextMenu, "confirm"),
+            HelpItem::new(CloseContextMenu, "cancel"),
+        ],
+    }
+}
+
 /// Help items for the stories view overlay.
 pub fn stories_overlay_items() -> Vec<HelpItem> {
     use Message::{
-        CopyUrl, NextFeed, OpenComments, OpenHnPage, OpenThemePicker, OpenUrl, PrevFeed, Quit,
-        Refresh, SelectFirst, SelectLast, SelectNext, SelectPrev, ToggleDebug, ToggleFavorite,
-        ToggleHelp,
+        CopyUrl, CycleSortOrder, NextFeed, OpenComments, OpenHnPage, OpenThemePicker, OpenUrl,
+        PrevFeed, Quit, Refresh, SelectFirst, SelectLast, SelectNext, SelectPrev, ToggleDebug,
+        ToggleFavorite, ToggleHelp,
     };
     vec![
         HelpItem::pair(SelectNext, SelectPrev, "navigate"),
@@ -194,6 +213,7 @@ pub fn stories_overlay_items() -> Vec<HelpItem> {
         HelpItem::new(OpenHnPage, "open on hn"),
         HelpItem::new(CopyUrl, "copy url"),
         HelpItem::new(ToggleFavorite, "favorite"),
+        HelpItem::new(CycleSortOrder, "sort"),
         HelpItem::new(Refresh, "refresh"),
         HelpItem::new(OpenThemePicker, "themes"),
         HelpItem::new(ToggleDebug, "debug"),

@@ -10,7 +10,7 @@ use std::time::Duration;
 use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
-pub use types::{CachedFeed, StorableComment, StorableStory};
+pub use types::{CachedFeed, StorableComment, StorableStory, StorySort};
 
 use crate::api::Feed;
 
@@ -113,6 +113,16 @@ pub enum StorageCommand {
     },
     GetFavoritedStories {
         reply: oneshot::Sender<Result<Vec<StorableStory>, StorageError>>,
+    },
+    GetFavoritedStoriesSorted {
+        sort: StorySort,
+        reply: oneshot::Sender<Result<Vec<StorableStory>, StorageError>>,
+    },
+    #[allow(clippy::type_complexity)]
+    GetFeedStoriesSorted {
+        feed: Feed,
+        sort: StorySort,
+        reply: oneshot::Sender<Result<Option<(Vec<StorableStory>, u64)>, StorageError>>,
     },
 }
 
@@ -268,6 +278,36 @@ impl Storage {
         let (tx, rx) = oneshot::channel();
         self.cmd_tx
             .send(StorageCommand::GetFavoritedStories { reply: tx })
+            .await?;
+        rx.await?
+    }
+
+    /// Get favorited stories with sorting.
+    pub async fn get_favorited_stories_sorted(
+        &self,
+        sort: StorySort,
+    ) -> Result<Vec<StorableStory>, StorageError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(StorageCommand::GetFavoritedStoriesSorted { sort, reply: tx })
+            .await?;
+        rx.await?
+    }
+
+    /// Get sorted stories for a feed.
+    /// Returns `(stories, fetched_at)` if feed exists, `None` otherwise.
+    pub async fn get_feed_stories_sorted(
+        &self,
+        feed: Feed,
+        sort: StorySort,
+    ) -> Result<Option<(Vec<StorableStory>, u64)>, StorageError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(StorageCommand::GetFeedStoriesSorted {
+                feed,
+                sort,
+                reply: tx,
+            })
             .await?;
         rx.await?
     }
