@@ -872,13 +872,22 @@ impl App {
         })
     }
 
+    /// Target number of stories to pre-fetch for stable column widths.
+    /// Uses ~2x visible capacity (capped at 150) to prevent column widths
+    /// from jumping as the user scrolls and more stories load.
+    fn prefetch_target(&self) -> usize {
+        self.visible_story_capacity()
+            .saturating_mul(2)
+            .clamp(30, 150)
+    }
+
     fn should_fill_viewport(&self) -> bool {
         matches!(self.view, View::Stories)
             && !self.load.loading
             && !self.load.loading_more
             && self.load.has_more
             && !self.stories.is_empty()
-            && self.stories.len() < self.visible_story_capacity()
+            && self.stories.len() < self.prefetch_target()
     }
 
     fn load_more(&mut self) {
@@ -1140,22 +1149,23 @@ mod tests {
     }
 
     #[test]
-    fn should_fill_viewport_when_stories_below_capacity() {
+    fn should_fill_viewport_when_stories_below_prefetch_target() {
         let stories = sample_stories(); // 5 stories
         let app = TestAppBuilder::new()
             .with_stories(stories)
-            .viewport_height(50) // capacity = 23
+            .viewport_height(50) // capacity = 23, prefetch_target = 46
             .has_more(true)
             .build();
         assert!(app.should_fill_viewport());
     }
 
     #[test]
-    fn should_not_fill_viewport_when_stories_at_capacity() {
-        let stories: Vec<_> = (0..25).map(|i| StoryBuilder::new().id(i).build()).collect();
+    fn should_not_fill_viewport_when_stories_at_prefetch_target() {
+        // prefetch_target for viewport_height=50 is 46 (2x capacity clamped to 30-150)
+        let stories: Vec<_> = (0..50).map(|i| StoryBuilder::new().id(i).build()).collect();
         let app = TestAppBuilder::new()
-            .with_stories(stories) // 25 stories
-            .viewport_height(50) // capacity = 23
+            .with_stories(stories) // 50 stories >= prefetch_target of 46
+            .viewport_height(50)
             .has_more(true)
             .build();
         assert!(!app.should_fill_viewport());

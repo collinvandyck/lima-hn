@@ -4,12 +4,12 @@ expression: output
 ---
 [1]Favs  [2]Top  [3]New  [4]Best  [5]Ask  [6]Show  [7]Jobs
 ────────────────────────────────────────────────────────────────────────────────
-  Read Story One (example.com)
-  ▲ 100 | testuser |  10 comments | 1d ago
-▶ Unread Story Two (example.com)
-  ▲ 200 | testuser |  10 comments | 1d ago
-  Read Story Three (example.com)
-  ▲ 300 | testuser |  10 comments | 1d ago
+▶ Small numbers (example.com)
+  ▲    1 | a            |     0 comments | 1d ago
+  Large numbers (example.com)
+  ▲ 9999 | verylongname | 12345 comments | 1d ago
+  Medium numbers (example.com)
+  ▲  100 | pg           |    50 comments | 1d ago
 
 
 
@@ -25,4 +25,4 @@ expression: output
 
 
 ────────────────────────────────────────────────────────────────────────────────
- Top  2/3 | H/L:feeds  f:fav  ?:help  q:quit
+ Top  1/3 | H/L:feeds  f:fav  ?:help  q:quit

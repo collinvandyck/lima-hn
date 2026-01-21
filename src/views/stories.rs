@@ -17,6 +17,55 @@ use crate::time::{Clock, format_relative};
 use crate::views::common::{render_error, render_with_timestamp};
 use crate::views::status_bar::StatusBar;
 
+#[derive(Debug, Clone, Copy, Default)]
+struct ColumnWidths {
+    score: usize,
+    author: usize,
+    comments: usize,
+}
+
+impl ColumnWidths {
+    const MIN_SCORE: usize = 3;
+    const MIN_AUTHOR: usize = 4;
+    const MIN_COMMENTS: usize = 3;
+    const MAX_AUTHOR: usize = 15;
+
+    fn from_stories(stories: &[Story]) -> Self {
+        Self {
+            score: stories
+                .iter()
+                .map(|s| digit_count(s.score))
+                .max()
+                .unwrap_or(1)
+                .max(Self::MIN_SCORE),
+            author: stories
+                .iter()
+                .map(|s| s.by.len().min(Self::MAX_AUTHOR))
+                .max()
+                .unwrap_or(1)
+                .max(Self::MIN_AUTHOR),
+            comments: stories
+                .iter()
+                .map(|s| digit_count(s.descendants))
+                .max()
+                .unwrap_or(1)
+                .max(Self::MIN_COMMENTS),
+        }
+    }
+}
+
+const fn digit_count(mut n: u32) -> usize {
+    if n == 0 {
+        return 1;
+    }
+    let mut count = 0;
+    while n > 0 {
+        count += 1;
+        n /= 10;
+    }
+    count
+}
+
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::vertical([
         Constraint::Length(1), // Feed tabs
@@ -77,10 +126,12 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
+    let widths = ColumnWidths::from_stories(&app.stories);
+
     let items: Vec<ListItem> = app
         .stories
         .iter()
-        .map(|story| story_to_list_item(story, theme, &app.clock, app.feed))
+        .map(|story| story_to_list_item(story, theme, &app.clock, app.feed, widths))
         .collect();
 
     let list = List::new(items)
@@ -102,6 +153,7 @@ fn story_to_list_item(
     theme: &ResolvedTheme,
     clock: &Arc<dyn Clock>,
     feed: Feed,
+    widths: ColumnWidths,
 ) -> ListItem<'static> {
     let theme = if story.is_read() && feed != Feed::Favorites {
         theme.dimmed()
@@ -120,13 +172,28 @@ fn story_to_list_item(
         theme.story_domain_style(),
     ));
     let title_line = Line::from(title_spans);
+    let author_display = if story.by.len() > ColumnWidths::MAX_AUTHOR {
+        format!("{}...", &story.by[..ColumnWidths::MAX_AUTHOR - 3])
+    } else {
+        story.by.clone()
+    };
     let meta_line = Line::from(vec![
-        Span::styled(format!("▲ {}", story.score), theme.story_score_style()),
-        Span::styled(" | ", theme.dim_style()),
-        Span::styled(story.by.clone(), theme.story_author_style()),
+        Span::styled(
+            format!("▲ {:>width$}", story.score, width = widths.score),
+            theme.story_score_style(),
+        ),
         Span::styled(" | ", theme.dim_style()),
         Span::styled(
-            format!("{} comments", story.descendants),
+            format!("{:<width$}", author_display, width = widths.author),
+            theme.story_author_style(),
+        ),
+        Span::styled(" | ", theme.dim_style()),
+        Span::styled(
+            format!(
+                "{:>width$} comments",
+                story.descendants,
+                width = widths.comments
+            ),
             theme.story_comments_style(),
         ),
         Span::styled(" | ", theme.dim_style()),
@@ -290,6 +357,50 @@ mod tests {
             .with_stories(sample_stories())
             .selected(0)
             .stories_fetched_at(fetched_at)
+            .build();
+
+        let output = render_to_string(80, 24, |frame| {
+            render(frame, &app, frame.area());
+        });
+
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn test_stories_view_aligned_columns() {
+        use crate::test_utils::StoryBuilder;
+
+        // Stories with varying field widths to verify alignment
+        let stories = vec![
+            StoryBuilder::new()
+                .id(1)
+                .title("Small numbers")
+                .url("https://example.com/1")
+                .score(1)
+                .author("a")
+                .comments(0)
+                .build(),
+            StoryBuilder::new()
+                .id(2)
+                .title("Large numbers")
+                .url("https://example.com/2")
+                .score(9999)
+                .author("verylongname")
+                .comments(12345)
+                .build(),
+            StoryBuilder::new()
+                .id(3)
+                .title("Medium numbers")
+                .url("https://example.com/3")
+                .score(100)
+                .author("pg")
+                .comments(50)
+                .build(),
+        ];
+
+        let app = TestAppBuilder::new()
+            .with_stories(stories)
+            .selected(0)
             .build();
 
         let output = render_to_string(80, 24, |frame| {
