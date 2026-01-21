@@ -131,7 +131,11 @@ fn render_story_list(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .stories
         .iter()
-        .map(|story| story_to_list_item(story, theme, &app.clock, app.feed, widths))
+        .enumerate()
+        .map(|(i, story)| {
+            let is_selected = i == app.selected_index;
+            story_to_list_item(story, theme, &app.clock, app.feed, widths, is_selected)
+        })
         .collect();
 
     let list = List::new(items)
@@ -154,8 +158,9 @@ fn story_to_list_item(
     clock: &Arc<dyn Clock>,
     feed: Feed,
     widths: ColumnWidths,
+    is_selected: bool,
 ) -> ListItem<'static> {
-    let theme = if story.is_read() && feed != Feed::Favorites {
+    let theme = if story.is_read() && feed != Feed::Favorites && !is_selected {
         theme.dimmed()
     } else {
         theme.clone()
