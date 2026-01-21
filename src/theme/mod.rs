@@ -268,15 +268,21 @@ impl ResolvedTheme {
     }
 
     pub fn story_score_style(&self) -> Style {
-        Style::default().fg(self.story_score)
+        Style::default()
+            .fg(self.story_score)
+            .add_modifier(Modifier::DIM)
     }
 
     pub fn story_author_style(&self) -> Style {
-        Style::default().fg(self.story_author)
+        Style::default()
+            .fg(self.story_author)
+            .add_modifier(Modifier::DIM)
     }
 
     pub fn story_comments_style(&self) -> Style {
-        Style::default().fg(self.story_comments)
+        Style::default()
+            .fg(self.story_comments)
+            .add_modifier(Modifier::DIM)
     }
 
     pub fn story_time_style(&self) -> Style {
